@@ -1,0 +1,554 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>NWS Weather Forecast Read Me</title>
+<style type="text/css">
+<!--
+body {
+	font: 100% Verdana, Arial, Helvetica, sans-serif;
+	background: #666666;
+	margin: 0; /* it's good practice to zero the margin and padding of the body element to account for differing browser defaults */
+	padding: 0;
+	text-align: center; /* this centers the container in IE 5* browsers. The text is then set to the left aligned default in the #container selector */
+	color: #000000;
+}
+
+.oneColElsCtrHdr #container {
+	width: 46em;  /* this width will create a container that will fit in an 800px browser window if text is left at browser default font sizes */
+	background: #FFFFFF;
+	margin: 0 auto; /* the auto margins (in conjunction with a width) center the page */
+	border: 1px solid #000000;
+	text-align: left; /* this overrides the text-align: center on the body element. */
+}
+.oneColElsCtrHdr #header { 
+	background: #DDDDDD; 
+	padding: 0 10px 0 20px;  /* this padding matches the left alignment of the elements in the divs that appear beneath it. If an image is used in the #header instead of text, you may want to remove the padding. */
+} 
+.oneColElsCtrHdr #header h1 {
+	margin: 0; /* zeroing the margin of the last element in the #header div will avoid margin collapse - an unexplainable space between divs. If the div has a border around it, this is not necessary as that also avoids the margin collapse */
+	padding: 10px 0; /* using padding instead of margin will allow you to keep the element away from the edges of the div */
+}
+.oneColElsCtrHdr #mainContent {
+	padding: 0 20px; /* remember that padding is the space inside the div box and margin is the space outside the div box */
+	background: #FFFFFF;
+}
+.oneColElsCtrHdr #footer { 
+	padding: 0 10px; /* this padding matches the left alignment of the elements in the divs that appear above it. */
+	background:#DDDDDD;
+} 
+.oneColElsCtrHdr #footer p {
+	margin: 0; /* zeroing the margins of the first element in the footer will avoid the possibility of margin collapse - a space between divs */
+	padding: 10px 0; /* padding on this element will create space, just as the the margin would have, without the margin collapse issue */
+}
+p {
+	font-size: 12px;	
+}
+.feature {
+	font-size: 12px;
+}
+.cntr {
+	text-align: center;
+	font-size: 14px;
+	font-weight: bold;
+}
+.codeBox {
+	font-family: "Times New Roman", Times, serif;
+	border: 1px solid blue;
+	background-color: #FFC;
+	margin: 1%;
+	text-align: left;
+}
+.codeP{
+	margin-top: 7px;
+}
+-->
+</style></head>
+
+<body class="oneColElsCtrHdr">
+
+<div id="container">
+  <div id="header">
+    <h2>NWS-Alerts</h2>
+  </div>
+  <div id="mainContent">
+    <h3> Description</h3>
+    <p>This program is designed to get <b>all</b> alerts for one to several counties as supplied by the National Weather Service.</p>
+    <p>Public alerts are acquired from the National Weather Service in the Atom Syndication Format (ATOM).<br />
+      These feeds are updated about every two minutes by the NWS.</p>
+    <p>Acquiring all of the alerts for a given location can be rather difficult since the NWS splits up these alerts into two groups, or codes. Severe alerts are listed in a County code and less severe alerts are in a Zone code.<br />
+    Some large metropolitan areas may have several Zone codes and one County code which makes this a little more difficult to get all possible alerts for a single county.<br />
+    </p>
+    <p>This nws-alerts program can get all of the alerts for a desired county using two to several codes.</p>
+    <p>Features:</p>
+    <ul class="feature">
+       <li> No cron jobs are needed for one or two locations</li>
+       <li>Configurable alert box for the index page</li>
+       <li>Configurable big icons for the menu side bar</li>
+       <li>Optional RSS Feed page</li>
+       <li>Data is cached after a fresh download</li>
+       <li>A Google map displays an outlined warning area</li>
+    </ul>
+<p>&nbsp;</p>
+<h3>INDEX</h3>
+<p>
+<a href="#T1">Deciding to use a cron job</a><br/>
+<a href="#T2">Installation &amp; Setup</a><br/>
+<a href="#T3">Settings</a><br/>
+<a href="#T8">Location array set up - $myZC</a><br/>
+<a href="#T4">Standard web page set up</a><br/>
+<a href="#T5">Saratoga Base-USA set up</a><br/>
+<a href="#T6">Troubleshooting</a><br/>
+<a href="#T7">Contact</a><br/>
+</p>
+<p>&nbsp;</p>
+<a name="T1" id="T1"></a>
+<h3>Implementation - To cron or not to cron</h3>
+<p>Speed is the key factor on how to configure this program.</p>
+<p>To get all of the alerts for a given location, at least&nbsp;one County code and one Zone code is needed. Some locations use more than one Zone code and some locations have more than one County code, especially in mountainous regions and large metropolitan areas like Baltimore. Each code entered for a location is separately checked for possible alerts and if an alert is found, or multiple alerts are found, a link to each alert is collected and then the alert is downloaded. Each code takes a certain amount of time to check and download. The more codes to check, the longer it takes the script to process. This is where the speed comes into play to determine if you need to run the nws-alerts program using a cron job or not. </p><a name="T10" id="T10"></a>
+<p>The nws-alerts program is  efficient getting these preliminary alert links. Under normal conditions it takes about one tenth of a second to search each code for an alert link. At times abnormal conditions exist on the internet such as traffic, NWS updating at time of call, NWS server readiness, etc.  The nws-alerts program will time out after 3 seconds if the data is not available and then it moves on to the next code. If abnormal conditions persist, it could take up to six seconds the load the link for each location. This seldom occurs but is possible and it would slow down the script process time. </p>
+<p>After the preliminary checks for alerts, the links are gathered and the nws-alerts program will then download the complete details for each alert. If you have two or more locations that have the same alert, the nws-alerts program will only download the details once eliminating redundant downloads to save time. Again, the speed is affected by the internet traffic and conditions at the NWS.<br />
+MOST OF THE TIME it takes less than a second to download the preliminary links and primary details for two locations with alerts.</p>
+<p>You can view the script load time by viewing the page source. It's listed as&nbsp; Total script process time:</p>
+<p><b>Recommendation:</b><br />
+If you are going to use one or two locations using one Zone code and one County code for each location, then don't use the cron job and let the page visit invoke the script to get the data after the cache file expires.<br/>
+Getting fresh alert data after the cache file expires will slow down loading the index page about a second. This isn't much and not that noticeable.</p>
+<p>Two or more locations should use a cron job, or Windows Task Scheduler, to get the data.<br/>
+This way the alert processing time will not slow down loading the index page because the alert information will always be available.</p>
+<p>&nbsp;</p>
+<a name="T2" id="T2"></a>
+<h3>Installation &amp; Setup</h3>
+    <p>Extract the nws-alerts.zip file.<br />
+      There are several files, such as web pages, a data file, a configuration file, and the main file.<br />
+      Icons are supplied in the folder named alert-images.<br/>
+      Below is a description of the files and how to use them.</p>
+    <p><b>nws-alerts.php</b> - The core file to &quot;include&quot; in your web page or to cron depending on the number of locations used.&nbsp;There is nothing to configure in this file. This file is uploaded to the web folder where your web pages are located.</p>
+    <p><b>nws-alerts-config.php</b> - Configure file names, folders, alert box, icons, etc. This file is uploaded to the web folder where your web pages are located after you have made the necessary adjustments.</p>
+    <p><b>nws-alerts-details-inc.php</b> - This file gathers data from the cache file and transforms it to a formatted output for the alert details. It gets 'included' into a web page.</p>
+    <p><b>nws-details.php</b> - A standard details web page. It 'includes' the nws-alerts-details-inc.php file. You can also use this file as a reference on how to 'include' the nws-alerts-details-inc.php file&nbsp;in your own template theme.</p>
+    <p><b>wxnws-details.php</b> - Details web page for the Saratoga Base-USA templates. It 'includes' the nws-alerts-details-inc.php file.</p>
+    <p><b>nws-alerts-summary-inc.php</b> - This file gathers data from the cache file and transforms it to a formatted output for a summary of alerts page. It gets 'included' into a web page.</p>
+    <p><b>nws-summary.php</b> - A standard web page to display a summary of the alerts. It 'includes' the nws-alerts-summary-inc.php file. You can also use this file as a reference on how to 'include' the nws-alerts-summary-inc.php file&nbsp;in your own template theme.</p>
+    <p><b>wxadvisory.php</b> - Summary web page for the Saratoga Base-USA templates version 3 or higher. This file replaces your current file that you are using now. A switch in the Settings.php can change what gets displayed on this page. Either the nws-alerts summary data or the default atom-advisory&nbsp;data.</p>
+    <p><b>nws-shapefile.txt</b> - This file is provided by the NWS. It contains all of the zone codes with their latitude and longitude. This file is used for getting the locations for the Google map that is placed in the details page.</p>
+    <p><b>alert-images folder</b> - All icons and images are in this folder. Upload the complete folder. You may already have this folder with the same icons but there are a few images added in this updated file.</p>
+    <p><b>cache folder</b> - This folder contains three cache files and one status text file used for the initial set up.<br/>
+    This cache folder along with the four files are uploaded to the web site.</p>
+    <p>&nbsp;</p>
+    <p></p>
+<a name="T3" id="T3"></a>
+<h3>Settings</h3>
+    <p><b>nws-alerts-config.php</b></p>
+    <p>The following default settings are for a <b>Saratoga Base-USA web site</b>.<br/>
+    Non - Saratoga Base-USA users will user different file names as they are noted where needed.</p>
+    <p><span style="color: #960;">$myZC &nbsp;array()</span><br/>
+      The array where the county location names and Zone codes with County codes are entered.<br />
+      This is described below.  <a href="#T8">Reference</a></p>
+   <p><span style="color: #960;">$ourTZ = 'America/New_York'; &nbsp;&nbsp;&nbsp;// *** Time Zone    http://www.php.net/manual/en/timezones.america.php</span><br/>
+    Time zone of your location. All dates and times reflect on this setting. The URL listed is where you can find the name of your time zone.<br/>
+    This settings will be overridden by Settings.php entries if using the Saratoga Base-USA template set.</p>
+    <p><span style="color: #960;">$cacheFileDir  = './cache/'; &nbsp;&nbsp;&nbsp;// default cache file directory</span><br/>
+      Folder/directory where the cache files will be written and used.<br/>
+    This settings will be overridden by Settings.php entries if using the Saratoga Base-USA template set.</p>
+ <p><span style="color: #960;">$icons_folder = './alert-images'; &nbsp;&nbsp;&nbsp;// folder that contains the icons. No slash on end</span><br/>
+Folder/directory that contain the icons and images used.</p>
+ <p><span style="color: #960;">$cacheFileName = 'nws-alertsMainData.php'; &nbsp;&nbsp;&nbsp;// main data cache file name</span><br/>
+Alert details are in this file and placed placed in cache folder specified at $cacheFileDir. This file will be included in the web page to display the details.</p>
+ <p><span style="color: #960;">$aboxFileName = 'nws-alertsBoxData.php'; &nbsp;&nbsp;&nbsp;// alert box cache file name</span><br/>
+Alert events and locations are in this file and placed placed in cache folder specified at $cacheFileDir. This file contains the mark up and data to display an alert box on the index page. It will be included in the index page where you want to display the alert box. Displaying the alert box is an option and explained below.</p>
+ <p><span style="color: #960;">$iconFileName      = 'nws-alertsIconData.php'; &nbsp;&nbsp;&nbsp;// big icons cache file</span><br/>
+The file name used for the big icons used in the menu side bar. It contains the location and related alert icon along with the mark up. This cache file will need to be included in side bar code. See instructions below.</p>
+ <p><span style="color: #960;">$alertURL      = 'wxnws-details.php'; &nbsp;&nbsp;&nbsp;// web page file name for complete details</span><br/>
+The file name of the web page to display the alert details for each location. The nws-alerts program uses this file name as a link when an icon or location is clicked in the alert box or the menu side bar. See instructions below.</p>
+ <p>NOTE: If you are not using the Saratoga Base-USA templates, enter this file name: <span style="color: #960;">nws-details.php</span></p>
+ <p><span style="color: #960;">$summaryURL      = 'wxadvisory.php'; &nbsp;&nbsp;&nbsp;// web page for the alert summary</span><br/>
+The file name of the web page to display a summary of each location and its alert status. The nws-alerts program uses this file name as a link when an event is clicked in the alert box. See instructions below.</p>
+ <p>NOTE: If you are not using the Saratoga Base-USA templates, enter this file name: <span style="color: #960;">nws-summary.php</span></p>
+
+   <p><span style="color: #960;">$noCron = true; &nbsp;&nbsp;&nbsp;// true=not using cron, update data when cache file expires   false=use cron to update data</span><br/>
+If using one or two locations, set this to true. A cron job is not required and the cache files will update when the page is called after the cache file expires. Set this to false if using two or more locations and you will need to set up a cron job to update the cache files. This is explained above at Implementation - To cron or not to cron. Setting up a cron job is described below. <a href="#T4">Reference - Standard</a>&nbsp;  <a href="#T5"> Reference - Saratoga Base-USA</a></p>
+   <p><span style="color: #960;">$updateTime = 600; &nbsp;&nbsp;&nbsp;// IF $noCron=true - time span in seconds to retain cache file before updating</span><br/>
+Used only if you are not using a cron job. This is the amount of time in seconds to retain the cache file in seconds. 600 equals 10 minutes. After the cache file reaches this time period, the cache file(s) expire and will update after the next page visit. This is not used if $noCron is set to false.</p>
+   <p><span style="color: #960;">$floodType = true; &nbsp;&nbsp;&nbsp;// true=add prefix 'Areal' or 'River' to Flood alert title   false=no prefix to Flood alert</span><br/>
+Some flood alert titles may be catagorized with Areal or River in the title. Example:<br /> set to true AREAL FLOOD WARNING <br />set to false  FLOOD WARNING</p>
+   <p><span style="color: #960;">$noAlertText   = 'No Warnings, Watches, or Advisories'; &nbsp;&nbsp;&nbsp;// Text to display for no alerts.
+</span><br/>
+Text to display when there are no alerts for the location.</p>
+<p><span style="color: #960;">$logAlerts     = true; &nbsp;&nbsp;&nbsp;// true=log alerts  &nbsp;&nbsp; false=don't log alerts</span><br/>
+Basic alert data can be saved and viewed for a given date. A sample alert is included in the nws-alerts package.</p>
+<p><span style="color: #960;">$log_folder     = './alertlog'; &nbsp;&nbsp;&nbsp;// folder that contains the log files. No slash on end</span><br/>
+Folder to save the alert logs for reference.</p>
+<p><span style="color: #960;">$useAlertBox = true ; &nbsp;&nbsp;&nbsp;// true=use alert box &amp; write data file  &nbsp;&nbsp; false= not using alert box &amp; don't write file</span><br/>
+If you are going to use the alert box, set this to true to write the cache file. If you are not going to use the alert box, set this to false and the nws-alerts program will not write this cache file.</p>
+   <p><span style="color: #960;">$titleNewline = true ; &nbsp;&nbsp;&nbsp;// true=new line for each title&nbsp;&nbsp; false=string titles with other titles</span><br/>
+If you are going to use the alert box, set this to true to create a new line for each event or location. Setting this to false will string the events/titles on the same line depending if the alert box is wide enough.</p>
+    <p><span style="color: #960;">$aBox_Width = '99%'; &nbsp;&nbsp;&nbsp;// width of box &nbsp; Examples - $aBox_Width = '100%'; &nbsp; $aBox_Width = '850px';</span><br/>
+Width of the entire alert box where it is placed in the index page. Adjust this to fit the width to your likings. </p>
+    <p><span style="color: #960;">$centerText = true ; &nbsp;&nbsp;&nbsp;// true=center text in alert box    false=left align text</span><br/>
+  Set to true if you want the text centered in the alert box. Setting this to false will left align the text.</p>
+    <p><span style="color: #960;">$showNone = true ; &nbsp;&nbsp;&nbsp;// true=show 'NONE' if no alerts in alert box  &nbsp; false=don't show alert box if no alerts</span><br/>
+If there are no alerts for any location, set to true if you want the alert box to display with &quot;No alerts' displayed. Setting this to false will not display the alert box if there are no alerts for any location.</p>
+    <p><span style="color: #960;">$locSort = 1 ; &nbsp;&nbsp;&nbsp;// 0 = sort location as listed in $myZC array&nbsp;&nbsp; 1 = sort location alphabetically</span><br/> 
+      Location name display. Either as listed in the array or alphabetically.
+</p>
+   <p><span style="color: #960;">$sortbyEvent = 3; &nbsp;&nbsp;// sort titles in alert box by number listed below</span><br/>
+    0 = location - duplicate events will be displayed<br />
+    1 = location - duplicate events removed<br />
+    2 = event - duplicate events will be displayed<br />
+    3 = event - duplicate events removed<br />
+    Locations are always sorted by severity and then sorted by location.</p>
+   <p><span style="color: #960;">$iconLimit = 0; &nbsp;&nbsp;&nbsp;/ the number of icons to display &nbsp;&nbsp;&nbsp;&nbsp; 0=show all</span><br/>
+Limits the number of icons in the side bar. This will display the number of icons and if there are more alerts, a short message will state the remaining amount of icons not displayed such as&quot;+3 others&quot;.</p>
+   <p><span style="color: #960;">$addNone = true; &nbsp;&nbsp;&nbsp;// true=add NONE foreach location with No Alert at bottom of the list<br />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;false= don't show any NONE</span><br/>
+     If there is at least one location that has an alert, setting this to true will display the location without an alert with a 'NONE' icon. Setting this to false will not display any NONE icons. </p>
+   <p><span style="color: #960;">$shoNone = true; &nbsp;&nbsp;&nbsp;// true=show one 'NONE' if no alerts for all location  &nbsp; <br /> 
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; false=don't show one 'NONE' if no alerts for all location</span><br/>
+  If all locations do not have alerts, setting this to true will display one 'NONE' icon in the menu side bar. If set to false, the menu side bar will be blank if all locations do not have an alert. This only is effective if <span style="color: #960;">$addNone</span> is set to false.</p>
+   <p><span style="color: #960;">$useIcons = 3; &nbsp;&nbsp;// select number below</span><br/>
+0 = don't use icons - the cache file will not be written<br />
+1 = sort by alert - duplicate events will be displayed<br />
+2 = sort by alert - duplicate events removed<br />
+3 = single top alert icon for each location<br />
+4 = sort by location - duplicate removed<br />
+5 = sort by location - duplicate events will be displayed</p>
+   <p><span style="color: #960;">$useXML = false; &nbsp;&nbsp;&nbsp;// true=create XML RSS feed  &nbsp; false=not using RSS feed</span><br/>
+     If you plan to use the RSS Feed, set this to true. Setting this to false will not write the XML file.</p>
+   <p><span style="color: #960;">$rssTitle = 'Area Weather Alerts'; &nbsp;&nbsp;&nbsp;// title for the RSS/XML page </span><br/>
+The title to use for the RSS Feed.</p>
+<p><span style="color: #960;">$googleAPI = '-replace-this-with-your-API-key-here-';  &nbsp;&nbsp;&nbsp;// your Google API key; </span><br/> 
+Enter your Google API key to display the alert map. If you leave the code as is, the map will not display.<br />
+If this setting is in the file Settings.php, you do not need to change this as it will be overwritten.
+</p>
+   <p><span style="color: #960;">$zoomLevel = '7'; &nbsp;&nbsp;&nbsp;// default zoom level</span><br/> 
+     Default zoom level for the Google map.
+</p>
+   <p><span style="color: #960;">$displaymap = 1; &nbsp;&nbsp;&nbsp;// map display on details page<br/>
+   </span>
+ &nbsp;&nbsp;&nbsp;//  0 = do not display map<br/>
+ &nbsp;&nbsp;&nbsp;//  1 = display map only when polygon coordinates are provided in alert<br/>
+Polygon coordinates are not always supplied in the alert to outline the affected area geographically. They are generally  included when a warning or a severe statement is issued.
+</p>
+   <p><span style="color: #960;">$mapStyle= 4; &nbsp;&nbsp;&nbsp;// google map style<br/>
+   </span>
+ &nbsp;&nbsp;&nbsp;//  1 = ROADMAP displays the normal, default 2D tiles of Google Maps.<br/>
+ &nbsp;&nbsp;&nbsp;//  2 = SATELLITE displays photographic tiles.<br/>
+ &nbsp;&nbsp;&nbsp;//  3 = HYBRID displays a mix of photographic tiles and a tile layer for prominent features (roads, city names).<br/>
+ &nbsp;&nbsp;&nbsp;//  4 = TERRAIN displays physical relief tiles for displaying water features (mountains, rivers, etc.).<br/>
+
+Selectable default map type for the Google map. <br/>
+</p>
+<p>&nbsp;</p>
+<h3>Setting up pages to display the data</h3>
+<p>Be sure to back-up the files that are edited !</p>
+<p>Before uploading all of the files, open nws-alerts-config.php and configure the $myZC  array to your locations and check/adjust all remaining settings. <br/>
+  You will also need to add a few lines of code in your index page for the alert box and/or the big icons as described later on.</p>
+<p><a name="T12" id="T12"></a>
+
+Make sure the cache file exists that is entered in the config file at $cacheFileDir. If that cache file does not exist, create it. This cache folder MAY need to have the permission levels adjusted. You will notice this if you get an error message about not being able to open a file or if a file is missing.</p>
+<p>After making the necessary adjustments, upload the pages and then manually execute the script to populate the cache files.<br/>
+This is done by entering the following in the browsers URL bar:<br/>
+<i>http://yourwebsite.com/</i><b>nws-alerts.php?mu=1</b><br/>
+ You can then fine tune the settings in the config file for the alert box and menu side bar icons, if you wish to do so.<br />
+NOTE: If you change a setting, it won't take affect until the script updates the cache files. This can be done if you manually update the cache files by entering&nbsp;&nbsp; <i>http://yourwebsite.com/</i><b>nws-alerts.php?mu=1</b>&nbsp;&nbsp; in the URL bar of your browser.</p>
+<p>&nbsp;</p>
+<a name="T8" id="T8"></a>
+<h3>$myZC set up with Zone code &amp; County code</h3>
+    <p>$myZC is the array where the location and codes are entered with a pipe | separating each other.<br />
+The county location name is entered first, followed by a pipe, Zone (or County) code, a pipe, Zone (or County) code, a pipe, and any other codes related to the location. Notice the double quotes encasing each location and the comma.<br/>
+You can get your codes from the NWS. <a href="https://alerts.weather.gov/" onclick="window.open(this.href,'_blank');return false;">Codes for the ATOM/CAP feeds</a>
+    <br/><br/>
+    <i><b>Most</b></i> counties use one Zone code and one County code. <br/>
+    The following is an example of one county location with the appropriate Zone and County code:<br/>
+    </p>
+    <p class="codeBox">$myZC = array(&quot;Elkhart Co|INZ005|INC039&quot;);<br /></p>
+    <p>This example shows how to get alerts for three counties.</p>
+    <p class="codeBox">$myZC = array(<br />
+&quot;Elkhart Co|INZ005|INC039&quot;,<br />
+&quot;St Joe Co|INZ004|INC141&quot;,
+<br />
+&quot;Branch Co|MIZ080|MIC023&quot;<br />
+);
+<br /></p>
+    <p>Some locations such as large metropolitan areas and mountainous areas use multiple Zone codes and sometimes a county can be split into multiple County codes.<br/>
+    For instance, Baltimore has two Zone codes and two County codes. To get all of the alerts for Baltimore, the codes are all combined and the four codes will be separately checked.</p>
+    <p class="codeBox">$myZC = array(&quot;Baltimore|MDZ006|MDZ011|MDC005|MDC510&quot;);<br /></p>
+    <p>The following example is for  Baltimore and two counties:</p>
+    <p class="codeBox">$myZC = array(<br />
+&quot;Baltimore|MDZ006|MDZ011|MDC005|MDC510&quot;,<br />
+&quot;Anne Arundel|MDZ014|MDC003&quot;,
+<br />
+&quot;Prince Georges|MDZ013|MDC033&quot;<br />
+);
+<br /></p>
+    <p>NOTE: If a Zone code is the first code entered, the Google map will display in the details page. If a County code is the first code entered, the Google map will not display.</p>
+    <p>NOTE: The FIRST code entered after the county name can not be repeated or used in another location. Any code after the first code can be used again for a different county.</p>
+<p>&nbsp;</p>
+<a name="T4" id="T4"></a>
+<h3>Standard web page set up</h3>
+<p><b>$noCron - true or false ?</b><br />
+Somehow the data cache files need to be updated and that is determined by the setting $noCron in the <br />
+nws-alerts-config.php file.</p>
+<p>If you have a single location, you may want to set $noCron to true. When you choose 'true' for this option, the web page visit will update the cache files after the cache files have expired. The main file, nws-alerts.php, has to be included in a web page.</p>
+<p><b>IF&nbsp;&nbsp; $noCron is set to true</b><br />
+  Open your index file.<br/>
+  Copy and paste the following line right after&nbsp; &lt;body&gt; &nbsp;(or similar):</p>
+  <p class="codeBox">&lt;?php include(&quot;nws-alerts.php&quot;); ?&gt;<br />
+</p>
+<p>Save the file.</p>
+<p><b>IF&nbsp;&nbsp; $noCron is set to false</b><br/>
+  Do not perform the steps described above.</p>
+<p><i>How will the cache files update?</i><br />
+  You will need to set up a cron job, use the Windows Task Scheduler, or a method that you prefer, to call the <b>nws-alerts.php</b> file at specified intervals. Since each web host has there own way of setting up a cron job, you will need to find out how to do this by getting the directions from your web host.<br />
+  Using the Windows Task Scheduler has been amazingly  successful in doing this. <br />
+  Sample are available here: <a href="http://www.weather.ricksturf.com//scripts/SetUp_XPcron.zip">For WinXP</a>&nbsp; &nbsp; <a href="http://www.weather.ricksturf.com//scripts/SetUp_VistaCron.zip">For WinVISTA & Windows 7</a>&nbsp; &nbsp; <a href="http://www.weather.ricksturf.com//scripts/WIN10_Task_Scheduler.zip">For WIN10</a><br />
+</p>
+<p>TIP: The NWS usually updates the feeds &quot;about every two minutes&quot;. MOST of the time it's done on an even minute so I suggest running a cron on an odd minute to avoid long downloads or timing out on the data cull.<br />
+  If you use the Windows Task Scheduler, keep the PC time sync 'ed with the internet time.</p>
+<p>&nbsp;</p>
+<p><b>Adding the Alert Box</b><br />
+  This will place the alert box on the index page only.<br/>
+  Open the php index file.<br />
+  Add the following lines where you want the alert box to display: </p>
+<p class="codeBox">&lt;?php<br />
+// Add nws-alerts	alert box cache file<br />
+include_once(&quot;nws-alerts-config.php&quot;);<br />
+include($cacheFileDir.$aboxFileName);<br />
+// Insert nws-alerts	alert box<br />
+echo $alertBox;<br />
+?&gt;<br />
+</p>
+<p>Save the file, close it, and then upload it.</p>
+<p>&nbsp;</p>
+<p><b>Adding big icons</b></p>
+<p>The big icons can be added anywhere on a web page.<br/>
+A separate cache file stores these icons and they can be displayed any way you want which depends on your html and php expertise.</p>
+<p>The amount of icons depends on how many locations you have plus the setting made in the<br/>
+ nws-alerts-config.php file under &nbsp;// BIG ICONS .<br/>
+ Each icon is numbered and starts with the number one but again the amount of icons can vary.</p>
+<p>To get all of the icons, some php code is needed and some html mark up may be added for the desired output. Below are two examples.</p>
+<p>A simple way is to place the icons centered in a division like this:</p>
+<p class="codeBox">
+  &lt;?php <br />
+  include_once(&quot;nws-alerts-config.php&quot;);  // include the config file<br />
+  include($cacheFileDir.$iconFileName);   // include the big icon file<br />
+  // construct icons<br />
+  $bigIcos = '&lt;div style=&quot;text-align:center&quot;&gt;'.&quot;\n&quot;;<br />
+  foreach($bigIcons as $bigI) { <br />
+$bigIcos .= $bigI;<br />
+}<br />
+$bigIcos .= &quot; &lt;br /&gt;\n&lt;/div&gt;\n&lt;!-- end nws-alerts icons --&gt;\n&quot;;<br />
+echo $bigIcos; ?&gt;<br />
+</p>
+<p>Putting the icons in a table:</p>
+<p class="codeBox">&lt;?php <br />
+  include_once(&quot;nws-alerts-config.php&quot;); // include the config file<br />
+  include($cacheFileDir.$iconFileName); // include the big icon file<br />
+  // construct icons<br />
+  $bigIcos = '';<br />
+  $biCount = count($bigIcos);<br />
+  foreach($bigIcons as $bigI) { <br />
+  $bigIcos .= '&lt;td colspan=&quot;'.$biCount.'&quot;&gt;'.$bigI.&quot;&lt;/td&gt;\n&quot;;<br />
+  }<br />
+  ?&gt;<br />
+  &lt;table  border=&quot;0&quot; style=&quot;text-align:center&quot;&gt;<br />
+  &lt;tr&gt;<br />
+  &lt;?php echo $bigIcos; ?&gt;<br />
+  &lt;/tr&gt;<br />
+  &lt;/table&gt;<br />
+  <br />
+</p>
+<p>OR</p>
+<p class="codeBox">
+&lt;?php <br />
+  include_once(&quot;nws-alerts-config.php&quot;);  // include the config file<br />
+  include($cacheFileDir.$iconFileName);   // include the big icon file<br />
+  // construct icons<br />
+  $bigIcos = '';<br />
+  foreach($bigIcons as $bigI) { <br />
+$bigIcos .= &quot;&lt;tr&gt;\n&lt;td style=\&quot;text-align:center\&quot;&gt;&quot;.$bigI.&quot;&lt;/td&gt;\n&lt;/tr&gt;\n&quot;;<br />
+}<br />
+  ?&gt;<br />
+&lt;table  border=&quot;0&quot;&gt;<br />
+&lt;?php echo $bigIcos; ?&gt;<br />
+&lt;/table&gt;<br />
+</p>
+<p>&nbsp;</p>
+<a name="T5" id="T5"></a>
+<h3>Saratoga Base-USA set up</h3>
+<p>If you are using Saratoga Base-USA&nbsp;V3, you can download a  ZIP file of updated items that will contain the necessary code and files at <a href="http://saratoga-weather.org/wxtemplates/updates.php#updates" onclick="window.open(this.href,'_blank');return false;">PHP/AJAX Website Template Set - Updates</a>.<br/>
+Otherwise you will need to manually enter all of the following code below.</p>
+<p><b>Settings.php</b><br/>
+The Settings.php file needs to have some code inserted to use the nws-alerts program in other web pages.<br/>
+  A switch is provided to use the nws-alerts or the default atom-top-warning/atom-advisory program.<br/>
+  The location(s) and the related codes are configured here also. This will override the locations and codes <br/>
+  You can see where this is placed here: <a href="http://saratoga-weather.org/wxtemplates/Settings-config-USA.php" onclick="window.open(this.href,'_blank');return false;">PHP/AJAX Website Template Set - Settings.php - Base-USA</a></p>
+<p>Open Settings.php file.<br/>
+  Copy the code below and paste it in the Settings.php file.</p>
+<p class="codeBox">
+  // NWS Alerts package configuration (for Curly's nws-alerts scripts) <br />
+  $SITE['NWSalertsSidebar'] = true; // =true to insert in menubar, =false no insert to menubar <br /><br />
+  $SITE['NWSalertsCodes'] = array(<br />
+&quot;ELKHART|INZ005|INC039&quot;,<br />
+&quot;ST JOE IN|INZ004|INC141&quot;,<br />
+&quot;ST JOE MI|MIZ079|MIC149&quot;,<br />
+&quot;BRANCH Co|MIZ080|MIC023&quot;<br />
+);<br />
+</p>
+<p>Change the locations and Zone/County codes for the areas you want to cover. These codes can be found at the NWS web site. <a href="https://alerts.weather.gov/" onclick="window.open(this.href,'_blank');return false;">https://alerts.weather.gov/</a></p>
+<p>NOTE: If a Zone code is the first code entered, the Google map will display in the details page. If a County code is the first code entered, the Google map will not display.</p>
+<p>NOTE: The FIRST code entered after the county name can not be repeated or used in another location. Any code after the first code can be used again for a different county.</p>
+<p>After you have made the changes, save the file and close it.</p>
+<p><b>header.php</b>
+    <br/>
+    Open the file header.php located in the Saratoga Base-USA folder.<br />
+    Locate the following three lines:</p>
+<p class="codeBox">require_once(&quot;common.php&quot;);<br />
+  ############################################################################<br />
+  if (isset($SITE['uomTemp']) ) {
+  <br />
+</p>
+<p>Replace those three lines with these:</p>
+<p class="codeBox">require_once(&quot;common.php&quot;);<br />
+  // add support for noCron=true fetch of nws-alerts to get current alerts<br />
+if(isset($SITE['NWSalertsCodes']) and count($SITE['NWSalertsCodes']) &gt; 0) {<br />
+include_once(&quot;nws-alerts-config.php&quot;); // load the configuration for nws-alerts<br />
+if(isset($noCron) and $noCron) {<br />
+print &quot;&lt;!-- nws-alerts noCron=true .. running nws-alerts.php inline --&gt;\n&quot;;<br />
+include_once(&quot;nws-alerts.php&quot;);<br />
+}<br />
+}<br />
+############################################################################<br />
+if (isset($SITE['uomTemp']) ) {<br />
+</p>
+<p>Save and close that file.</p>
+<p><b>menubar.php</b><br />
+Open the menubar.php file.<br/>
+Find the following two lines:</p>
+<p class="codeBox">?&gt;<br />
+&lt;!-- external links --&gt;<br />
+</p>
+<p>Replace those two lines with these:</p>
+<p class="codeBox">?&gt;<br />
+  &lt;?php if(<br />
+isset($SITE['NWSalertsSidebar']) and $SITE['NWSalertsSidebar'] and<br />
+isset($SITE['NWSalertsCodes']) and count($SITE['NWSalertsCodes']) &gt; 0) { ?&gt;<br />
+&lt;!-- nws-alerts icons --&gt;<br />
+&lt;p class=&quot;sideBarTitle&quot; style=&quot;text-align:center&quot;&gt;&lt;?php langtrans('Alerts'); ?&gt;&lt;/p&gt;<br />
+&lt;?php<br />
+include_once(&quot;nws-alerts-config.php&quot;); // include the config file<br />
+include($cacheFileDir.$iconFileName); // include the big icon file<br />
+// construct menu bar icons<br />
+$bigIcos = '&lt;div style=&quot;text-align:center&quot;&gt;'.&quot;\n&quot;;<br />
+foreach($bigIcons as $bigI) {<br />
+$bigIcos .= $bigI;<br />
+}<br />
+$bigIcos .= &quot; &lt;br /&gt;\n&lt;/div&gt;\n&lt;!-- end nws-alerts icons --&gt;\n&quot;;<br />
+echo $bigIcos; ?&gt;<br />
+&lt;?php } // end of NWS alerts sidebar ?&gt;<br />
+&lt;!-- end nws-alert icons--&gt;
+<br />
+</p>
+<p><br/>
+  Save the file and close it.</p>
+<p><b>wxindex.php</b><br />
+  Open the file wxindex.php located in the Saratoga Base-USA folder.<br />
+Find the following lines: </p>
+<p class="codeBox">&lt;?php // insert desired warning box at top of page<br />
+  if ($useTopWarning) {<br />
+  if (phpversion() &lt; 5.0) { <br />
+  include_once(&quot;rss-top-warning.php&quot;);<br />
+  } else {<br />
+  include_once(&quot;atom-top-warning.php&quot;);<br />
+  }<br />
+  } else {<br />
+  print &quot;      &lt;div class=\&quot;advisoryBox\&quot;&gt;\n&quot;;<br />
+  $_REQUEST['inc'] = 'y';<br />
+  $_REQUEST['summary'] = 'Y';<br />
+  if (phpversion() &lt; 5.0) {<br />
+  include_once(&quot;rss-advisory.php&quot;);<br />
+  } else { <br />
+  include_once(&quot;atom-advisory.php&quot;);<br />
+  }<br />
+  print &quot;      &lt;/div&gt;\n&quot;;<br />
+  }<br />
+  ?&gt;<br />
+</p>
+<p>Replace those lines with these lines:</p>
+<p class="codeBox">&lt;?php // insert desired warning box at top of page<br />
+if(isset($SITE['NWSalertsCodes']) and count($SITE['NWSalertsCodes']) &gt; 0) {<br />
+// Add nws-alerts alert box cache file<br />
+include_once(&quot;nws-alerts-config.php&quot;);<br />
+include($cacheFileDir.$aboxFileName);<br />
+// Insert nws-alerts alert box<br />
+echo $alertBox;<br />
+?&gt;<br />
+&lt;?php<br />
+} else { // use atom scripts of choice<br />
+if ($useTopWarning) {<br />
+include_once(&quot;atom-top-warning.php&quot;);<br />
+} else {<br />
+print &quot;      &lt;div class=\&quot;advisoryBox\&quot;&gt;\n&quot;;<br />
+$_REQUEST['inc'] = 'y';<br />
+$_REQUEST['summary'] = 'Y';<br />
+include_once(&quot;atom-advisory.php&quot;);<br />
+print &quot;      &lt;/div&gt;\n&quot;;<br />
+}<br />
+}<br />
+?&gt;
+<br />
+</p>
+<p>Save the file and close it.</p>
+<p>Upload these four files that were just edited.</p>
+<p>&nbsp;</p>
+<p><b>Adding </b><b>Menu Items</b><br />
+Open the file 
+flyout-menu.xml.<br/>
+<i>Be careful when editing this page!</i><br />
+XML is very finicky and it will cause the page not to load if it contains any errors.<br />
+The examples below are using the file names entered in the nws-alerts-config.php file at&nbsp;$summaryURL .</p>
+<p>To add the RSS Feed to the menu, copy the following line and insert it where you want it to appear:</p>
+<p class="codeBox"> 		&lt;item caption=&quot;RSS Feed&quot; link=&quot;nws-rssfeed.xml&quot;/&gt;</p>
+<p>Save and close the file.<br/>
+You should delete the file flyout-menu.xml that is on the web server and then upload the modified file.</p>
+<p>&nbsp;</p>
+<a name="T6" id="T6"></a>
+<h3>Troubleshooting</h3>
+<p><b>PHP errors:</b><br/>
+The most common cause of PHP errors are the file and folder permission level settings. It will have the word &quot;permission&quot; in the error message. In this case, you will need to adjust the folder and file permission levels.</p>
+<p>&quot;...failed to open stream: No such file or directory...&quot; -&nbsp; A folder or file is not set&nbsp;and needs to be created. Also this could be a file permission setting not allowing the file to be written.</p>
+<p><b>Data doesn't update:</b><br/>
+&nbsp; &nbsp; &bull; The NWS servers are down.&nbsp; <a href="#T10">Reference</a><br/>
+&nbsp; &nbsp; &bull; The nws-alerts.php file is not included in a page or is not being cronned. <a href="#T4">Reference</a> <br/>
+&nbsp; &nbsp; &bull; Your web host doesn't support cURL functions.<br/>
+&nbsp; &nbsp; &bull; Manually run the nws-alerts.php file and then view the page source. <a href="#T12">Reference</a><br/>
+&nbsp;&nbsp; &nbsp;&nbsp; Comments will detail the time it took to cull the data and what happened to the cache file.<br/>
+</p>
+<p><b>Google map:</b><br/>
+It does not display - <br/>
+  &nbsp; &nbsp; &bull; Javascript is not enabled.<br/>
+  &nbsp; &nbsp; &bull; Polygon coordinates are not provided in the alert.<br/>
+  &nbsp; &nbsp; &bull; Invalid Google API key.<br/>
+  &nbsp; &nbsp; &bull; $displaymap is not set to 1 in the file nws-alerts-config.php.<br/>
+  &nbsp; &nbsp; &bull; A zone code for a location is not in the nws-shapefile.txt file.<br/>
+  &nbsp;&nbsp;&nbsp; &nbsp; This file is supplied by the NWS and not all locations are listed.</p>
+<p>The legend shows more alerts than the outlined areas:<br/>
+&nbsp; &nbsp; &bull; Alerts are overlapping with the same shape.</p>
+<p>You have to zoom out to see the outlined shape of the alert:<br/>
+&nbsp; &nbsp; &bull; The Zone code is not near the County code.<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set $zoomLevel&nbsp; to a lower number to zoom out further.</p>
+<p>&nbsp;</p>
+<a name="T7" id="T7"></a>
+<h3>Contact Me</h3>
+<p>
+I answer all emails and will work with you on a one-to-one basis if you have any issues with this program.</p>
+<p>curly at ricksturf.com</p>
+<p>&nbsp;</p>
+   
+	<!-- end #mainContent --></div>
+  <div id="footer">
+    <p>&nbsp;</p>
+  <!-- end #footer --></div>
+<!-- end #container --></div>
+</body>
+</html>

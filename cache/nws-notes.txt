@@ -1,0 +1,17 @@
+Script characteristics on last page load:
+Last update: Mon 03-06-2017 16:20 PST
+nws-alerts.php - V1.41 - 07-Mar-2017
+Cron job enabled
+XML source: https://alerts.weather.gov/cap/wwaatmget.php?x=IAZ091
+XML source: https://alerts.weather.gov/cap/wwaatmget.php?x=IAC145
+XML source: https://alerts.weather.gov/cap/wwaatmget.php?x=CAZ529
+XML source: https://alerts.weather.gov/cap/wwaatmget.php?x=CAC087
+XML source: https://alerts.weather.gov/cap/wwacapget.php?x=IA125843EFFC60.RedFlagWarning.125843FC24E0IA.OAXRFWOAX.02b3d24df1292bfdcbf8a371d84a95f0
+XML source: https://alerts.weather.gov/cap/wwacapget.php?x=IA125843EFFC60.FireWeatherWatch.1258440B4010IA.OAXRFWOAX.70ec9af22ba033e92b769574c523a0bb
+XML source: https://alerts.weather.gov/cap/wwacapget.php?x=IA125843EFF878.WindAdvisory.125843FC24E0IA.OAXNPWOAX.80cee4efc462e1af90229690190840dc
+XML source: https://alerts.weather.gov/cap/wwacapget.php?x=IA125843FBDC38.TornadoWatch.125843FC7300IA.OAXWCNOAX.f2badd78a6f4ca71f582f72896221993
+Cache file updated: Mon 03-6-2017 4:20 pm
+Alert box data file updated
+Icon data file updated
+Alert logging enabled
+Total process time: 1.0213 seconds

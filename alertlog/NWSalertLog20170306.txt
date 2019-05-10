@@ -1,0 +1,120 @@
+<?php 
+ 
+$daily_log = array (
+  0 => 
+  array (
+    0 => 'Red Flag Warning',
+    1 => 'Page',
+    2 => 1488839520,
+    3 => 1488852000,
+    4 => 'FWW.gif',
+    5 => 'Fremont; Harrison; Mills; Monona; Montgomery; Page; Pottawattamie; Shelby',
+    6 => 'Dangerous fire weather conditions again on Tuesday',
+  ),
+  1 => 
+  array (
+    0 => 'Fire Weather Watch',
+    1 => 'Page',
+    2 => 1488839520,
+    3 => 1488934800,
+    4 => 'FWA.gif',
+    5 => 'Fremont; Harrison; Mills; Monona; Montgomery; Page; Pottawattamie; Shelby',
+    6 => 'Dangerous fire weather conditions again on Tuesday',
+  ),
+  2 => 
+  array (
+    0 => 'Wind Advisory',
+    1 => 'Page',
+    2 => 1488838920,
+    3 => 1488852000,
+    4 => 'WIY.gif',
+    5 => 'Fremont; Harrison; Mills; Monona; Montgomery; Page; Pottawattamie; Shelby',
+    6 => 'WIND ADVISORY REMAINS IN EFFECT UNTIL 8 PM CST THIS EVENING',
+  ),
+  3 => 
+  array (
+    0 => 'Tornado Warning',
+    1 => 'Page',
+    2 => 1488844740,
+    3 => 1488845700,
+    4 => 'TOR.gif',
+    5 => 'Page',
+    6 => 'The National Weather Service in Omaha has issued a',
+  ),
+  4 => 
+  array (
+    0 => 'Tornado Warning',
+    1 => 'Page',
+    2 => 1488844260,
+    3 => 1488845700,
+    4 => 'TOR.gif',
+    5 => 'Page',
+    6 => 'The National Weather Service in Omaha has issued a',
+  ),
+  5 => 
+  array (
+    0 => 'Tornado Watch',
+    1 => 'Page',
+    2 => 1488843420,
+    3 => 1488859200,
+    4 => 'TOA.gif',
+    5 => 'Fremont; Montgomery; Page',
+    6 => 'TORNADO WATCH 61 REMAINS VALID UNTIL 10 PM CST THIS EVENING FOR',
+  ),
+  6 => 
+  array (
+    0 => 'Tornado Warning',
+    1 => 'Page',
+    2 => 1488845160,
+    3 => 1488845700,
+    4 => 'TOR.gif',
+    5 => 'Page',
+    6 => 'The TORNADO Warning for SOUTHEASTERN PAGE COUNTY WILL EXPIRE AT
+615 PM CST',
+  ),
+  7 => 
+  array (
+    0 => 'Severe Weather Statement',
+    1 => 'Page',
+    2 => 1488845160,
+    3 => 1488859200,
+    4 => 'SVS.gif',
+    5 => 'Page',
+    6 => 'The TORNADO Warning for SOUTHEASTERN PAGE COUNTY WILL EXPIRE AT
+615 PM CST',
+  ),
+  8 => 
+  array (
+    0 => 'Tornado Warning',
+    1 => 'Page',
+    2 => 1488845280,
+    3 => 1488845700,
+    4 => 'TOR.gif',
+    5 => 'Page',
+    6 => 'The TORNADO Warning for EAST CENTRAL PAGE COUNTY WILL EXPIRE AT
+615 PM CST',
+  ),
+  9 => 
+  array (
+    0 => 'Severe Weather Statement',
+    1 => 'Page',
+    2 => 1488845280,
+    3 => 1488859200,
+    4 => 'SVS.gif',
+    5 => 'Page',
+    6 => 'The TORNADO Warning for EAST CENTRAL PAGE COUNTY WILL EXPIRE AT
+615 PM CST',
+  ),
+  10 => 
+  array (
+    0 => 'Tornado Watch',
+    1 => 'Page',
+    2 => 1488845640,
+    3 => 1488859200,
+    4 => 'TOA.gif',
+    5 => 'Page',
+    6 => 'TORNADO WATCH 61 REMAINS VALID UNTIL 10 PM CST THIS EVENING FOR',
+  ),
+);
+
+?>
