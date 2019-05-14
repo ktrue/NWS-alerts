@@ -3,6 +3,8 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
 <meta name="viewport" content="initial-scale=1.0" />
+<link rel="stylesheet" href="nws-alerts.css" />
+
 <title>NWS Alerts Details</title>
 <style type="text/css">
 <!--
