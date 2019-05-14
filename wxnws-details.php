@@ -29,6 +29,7 @@
 ############################################################################
 //Version 1.00 - 28-Jul-2012 - initial relase with nws-alerts package
 //Version 1.01 - 03-Aug-2016 - updated for V1.37 nws-alerts.php
+//Version 1.02 - 14-May-2019 - updated for Leaflet/OpenStreetMaps
 require_once("Settings.php");
 require_once("common.php");
 ############################################################################
@@ -37,6 +38,7 @@ $showGizmo = true;  // set to false to exclude the gizmo
 include("top.php");
 ############################################################################
 ?>
+<link rel="stylesheet" href="nws-alerts.css" />
 </head>
 <body>
 <?php

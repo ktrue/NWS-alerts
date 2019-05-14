@@ -11,8 +11,9 @@
 // Version: 1.03  21-Dec-2015 - Add month and day to effective & expire times
 // Version: 1.04  03-Aug-2016 - Add Google Maps API
 // Version: 1.05  27-Jan-2018 - Fix for PHP 7.1
+// Version  1.06  14-May-2019 - replaced Google Map with Leaflet/OpenStreetMaps
 
-$Version = "nws-alerts-details-inc.php - V1.05 - 27-Jan-2018"; 
+$Version = "nws-alerts-details-inc.php - V1.06 - 14-May-2019"; 
 
 //ini_set('display_errors', 1);
 //error_reporting(E_ALL);
@@ -22,7 +23,7 @@ include('nws-alerts-config.php');        // include the config/settings file
 // overrides from Settings.php if available
 global $SITE;
 if(isset($SITE['cacheFileDir'])) {$cacheFileDir = $SITE['cacheFileDir'];}
-if(isset ($SITE['googleAPI']))   {$googleAPI = $SITE['googleAPI'];}
+if(isset($SITE['mapboxAPIkey'])) {$mapboxAPIkey = $SITE['mapboxAPIkey'];}
 if(isset ($SITE['tz']))          {$ourTZ = $SITE['tz'];}
 if(!function_exists('date_default_timezone_set')) {
   putenv("TZ=" . $ourTZ);
@@ -46,28 +47,10 @@ $zCoord       = '';                    // set variable
 $czCode       = '';                    // set variable
 $asf          = array();               // set variable
 $polyLegend   = '';                    // set variable
+$sfllarea     = array();               // set variable
 
 // get last modified time of the cache file
 $fileUpdated  = date("D, n/j g:ia",filemtime($cacheFileDir.$cacheFileName));
-
-// set the map style
-switch($mapStyle){
-  case 1:
-    $mStyle = 'ROADMAP';
-    break;
-  case 2:
-    $mStyle = 'SATELLITE';
-    break;
-  case 3:
-    $mStyle = 'HYBRID';
-    break;
-  case 4:
-    $mStyle = 'TERRAIN';
-    break;
-  default:
-    $mStyle = 'ROADMAP';
-    break;
-}
 
 if(isset($_GET['a']) && !empty($_GET['a'])) {                                  // IF the location code is set
   $czCode = htmlspecialchars(strip_tags($_GET['a']));                          //   clean up location code
@@ -89,19 +72,7 @@ if(!empty($noAlerts) and in_array($czCode,$noAlerts)) {                        /
 if(!preg_match('/0|1/', $displaymap)){                  // IF the map display type variable is not valid
   $displaymap = '0';                                    //  don't display the map
   echo '<!-- $displaymap is set incorrectly -->'."\n";  //  display remark
-  echo "<!-- The Google Map is not displaying -->\n";   //  display remark
-}
-// check for Google API key
-if(!isset($googleAPI) and $displaymap != '0'){                             // IF the tag is not set and display map is requested
-  $displaymap = '0';                                                       //  don't display the map
-  echo '<!-- Google Map API tag $googleAPI is not found -->'."\n";         //  display remark
-  echo "<!-- The Google Map is not displaying -->\n";                      //  display remark
-}
-if(isset($googleAPI) and preg_match('/^\-/', $googleAPI) and $displaymap == '1'){  // IF the tag is set AND key number has not been updated AND map is requested
-  $displaymap = '0';                                                               //  don't display the map
-  echo "<!-- A valid Google Map API key number has not been entered -->\n";        //  display remark
-  echo "<!-- Google Map API key number found: $googleAPI -->\n";                   //  display remark
-  echo "<!-- The Google Map is not displaying -->\n";                              //  display remark
+  echo "<!-- The Map is not displaying -->\n";   //  display remark
 }
 
 
@@ -137,6 +108,7 @@ if(!empty($czCode)) {                                                           
     if(!empty($sf)){                                                                            //     IF there is a shape area
       $sfll[] = explode(' ', $sf);                                                              //       create array of coordinates for shape files
       $asf[] = preg_replace("/\s/", '&nbsp;', $aav[0]);                                         //       create array for alert shape file
+			$sfllarea[] = $areas;
     }
 		
     if(!empty($intensity) and $intensity == 'Extreme') {
@@ -190,83 +162,195 @@ if(!empty($czCode)) {                                                           
 //echo "<!-- displaymap='$displaymap' sfll='".print_r($sfll,true)."' zCode='$zCode'-->\n";
 // MAP
 // create the map
+$leafletScript = '';
 if(($displaymap == '1' and !empty($sfll))) {                                            // IF display map option is selected & polygon provided
-  if(file_exists('nws-shapefile.txt') && !empty($zCode) && $displaymap !== '0') {       //  IF the shape file exists and a valid code and show map
-    // get data from shapefile for google map
-    $nsf = trim(file_get_contents('nws-shapefile.txt'));                                //   get nws shape file
-    $nsf = str_replace('  ||', "",  $nsf);                                              //   replace double pipes
-    $nsf = str_replace('|  ', "",  $nsf);                                               //   replace pipe & double space
-    $zll = preg_replace("/([A-Z]{2})\|(\d+|\d+ )\|.*(\|\d+\.\d+\|)/", '$1Z$2$3', $nsf); //   get zone, latitude, longitude
-    $zll = explode("\n", $zll);                                                         //   explode each line
-    foreach($zll as $lk) {                                                              //   FOR EACH zone code, lat, lon
-      list($loc, $lat, $lon) = explode('|', $lk);                                       //     list variables
-      $lon = trim($lon);                                                                //     trim spaces off of longitude
-      $loclatlon[$loc] = $lat.','.$lon;                                                 //     create array
-    }
-    if(array_key_exists($zCode, $loclatlon)) {                                                 //   IF the zone code is in the shape file array
-      $zcll = $loclatlon[$zCode];	                                                           //     get zone code latitude,longitude
+  if(file_exists('nws-all-zones-inc.php') && !empty($zCode) && $displaymap !== '0') {       //  IF the shape file 
+	  include_once('nws-all-zones-inc.php');  // load our Zones=>lat/lon centroid lookup table
+    if(isset($loclatlon[$zCode])) {
+			list($lat,$lon) = explode('|',$loclatlon[$zCode]);                                                 //   IF the zone code is in the shape file array
+      $zcll = $lat.','.$lon;	                                                           //     get zone code latitude,longitude
       // set polygon overlays	
       if(!empty($sfll)) {                                                                      //  IF there are shape files
         $cp = count($sfll)*4+1;                                                                //   count shapes files, times by 4 & add - used for different line widths
         $polyLegend = ' <div style="width: 630px; text-align:center; background-color:#FFF">'; //   create the polygon legend
-        $zcllA = preg_replace("/(.*)\,(.*)/", '{lat: ${1}, lng: ${2}}', $zcll);                //   create center location formatted output from coordinates
+        $zcllA = preg_replace("/(.*)\,(.*)/", '[${1},${2}]', $zcll);                //   create center location formatted output from coordinates
         foreach($sfll as $zk => $zv) {                                                         //   FOR EACH shape file
-          $cs = preg_replace("/(.*)\,(.*)/", '{lat: ${1}, lng: ${2}}', $zv);                   //     create formatted polygon coordinates
+          $cs = preg_replace("/(.*)\,(.*)/", '[${1},${2}]', $zv);                   //     create formatted polygon coordinates
           $cp = $cp/2;                                                                         //     divide number of shape files by 2
+					if($cp < 1.0) {$cp = 1;}
+					if($cp > 5.0) {$cp = 5;}
           $czc = count($zv);                                                                   //     format polygon coordinates
-		  $zCoord .= over_layB($zk,$cp,$cs);
+		      $zCoord .= over_layB($zk,$cp,$cs,$asf,$sfllarea);
           // create polygon legend
           $polyLegend .= '
   &nbsp; <span style="white-space: nowrap"><span style="color:black; font-size:75%; background-color:'.$rc
   .'; border:1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;</span>
   <span style="color:black; font-size:75%;">'.$asf[$zk].' &nbsp;&nbsp;&nbsp;</span></span> &nbsp;';
         }
-        $zCoord .= "}\n</script>\n";
+        $zCoord .= "\n</script>\n";
         $polyLegend .= "\n </div>\n";
       }
       // put together google map javascript
+			list($mapslist,$selectedmap) = make_map_selector ($mapProvider,$mapboxAPIkey);
       $gmjs .= '
-<div id="map" style="width: 630px; height: 160px; border:1px solid black"></div>
-<!-- Google maps v3 javascript -->
+<div id="map" style="width: 630px; height: 260px; border:1px solid black"></div>
+<!-- Leaflet 1.0.3 javascript by Saratoga-weather.org -->
 <script type="text/javascript">
- function initMap() {
-  var map = new google.maps.Map(document.getElementById(\'map\'), {
-  zoom: '.$zoomLevel.',
-  center: '.$zcllA.',
-  mapTypeId: google.maps.MapTypeId.'.$mStyle.'
- });
+'.$mapslist.'
+var map = L.map(\'map\', {
+		center: new L.latLng('.$zcllA.'), 
+		zoom: '.$zoomLevel.',
+		layers: ['.$selectedmap.'],
+		scrollWheelZoom: false
+		});
+
+  L.control.scale().addTo(map);
+  L.control.layers(baseLayers).addTo(map);
+
 ';
     }
-    $zCoord .= '<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key='.$googleAPI.'&amp;callback=initMap"></script>'."\n";
+    $leafletScript = '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.3/leaflet.js"></script>'."\n";
   }
 }
 
 // FUNCTION - set google map polygon attributes
-function over_layB($se,$pc,$po) {
-  global $rc;
+function over_layB($se,$pc,$po,$title,$affected) {
+  global $rc, $atomAlerts;
   $cs = $se;
   $colors = array('#DF0101','#F79F81','#F2F5A9','#0174DF','#58FAD0',
                   '#FACC2E','#01DF01','#F7BE81','#FE2E64','#E0F8EC');
   $cc = count($colors);
-  if(!array_key_exists($cs,$colors)) {$cs = shuffle(range(0,$cs));}
+  if(!isset($colors[$cs])) {$tr = range(0,$cs); shuffle($tr); $cs = $tr[0];}
   $rc = $colors[$cs];
   $ol =  "\n var polyc".$se." = [\n";
   foreach($po as $pk => $pv) {
     $ol	.=  "  ".$pv.",\n";
   }
-  $ol .= ' ]
- var mapoly'.$se.' = new google.maps.Polygon({
-  paths: polyc'.$se.',
-  strokeColor: "'.$colors[$cs].'",
-  strokeOpacity: 0.8,
-  strokeWeight: '.$pc.',
+	//$affected = isset($atomAlerts[$se][6])?'<br/>'.trim($atomAlerts[$se][6]):'';
+  $ol .= ' ];
+	
+// $asf[$se]="'.$title[$se].'"
+// $sfllarea[$se]="'.$affected[$se].'"
+//
+ var mapoly'.$se.' = new L.polygon(polyc'.$se.',{
+  opacity: 1.0,
+  color: "'.$rc.'",
+  strokeOpacity: 0.9,
+  weight: '.$pc.',
   fillColor: "'.$colors[$cs].'",
-  fillOpacity: 0.20
- });'."\n";
-  $ol .= " mapoly".$se.".setMap(map);\n";
+  fillOpacity: 0.20,
+	title: "'.$title[$se].'"
+ }).addTo(map);'."\n" . '
+
+  mapoly'.$se.'.bindTooltip("'.$title[$se].'<br/>'.trim($affected[$se]).'", 
+   { sticky: true,
+     direction: "auto"
+   });
+';
   return $ol;
 } // end of function
 
+function make_map_selector ($mapProvider,$mapboxAPIkey) {
+
+$output = '';
+// table of available map tile providers
+$mapTileProviders = array(
+  'OSM' => array( 
+	   'name' => 'Street',
+	   'URL' =>'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+		 'attrib' => '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Points &copy 2012 LINZ',
+		 'maxzoom' => 18
+		  ),
+  'Wikimedia' => array(
+	  'name' => 'Street2',
+    'URL' =>'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png',
+	  'attrib' =>  '<a href="https://wikimediafoundation.org/wiki/Maps_Terms_of_Use">Wikimedia</a>',
+	  'maxzoom' =>  18
+    ),		
+  'Esri_WorldTopoMap' =>  array(
+	  'name' => 'Terrain',
+    'URL' => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+	  'attrib' =>  'Tiles &copy; <a href="https://www.esri.com/en-us/home" title="Sources: Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community">Esri</a>',
+	  'maxzoom' =>  18
+    ),
+	'Terrain' => array(
+	   'name' => 'Terrain2',
+		 'URL' =>'http://{s}.tile.stamen.com/terrain/{z}/{x}/{y}.jpg',
+		 'attrib' => '<a href="https://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> <a href="https://stamen.com">Stamen.com</a> | Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.',
+		 'maxzoom' => 14
+		  ),
+	'OpenTopo' => array(
+	   'name' => 'Topo',
+		 'URL' =>'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+		 'attrib' => ' &copy; <a href="https://opentopomap.org/">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>) | Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.',
+		 'maxzoom' => 15
+		  ),
+	'MapboxTer' => array(
+	   'name' => 'Terrain3',
+		 'URL' =>'https://api.mapbox.com/styles/v1/mapbox/outdoors-v10/tiles/256/{z}/{x}/{y}?access_token='.
+		 $mapboxAPIkey,
+		 'attrib' => '&copy; <a href="https://mapbox.com">MapBox.com</a> | Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.',
+		 'maxzoom' => 18
+		  ),
+	'MapboxSat' => array(
+	   'name' => 'Satellite',
+		 'URL' =>'https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v10/tiles/256/{z}/{x}/{y}?access_token='.
+		 $mapboxAPIkey,
+		 'attrib' => '&copy; <a href="https://mapbox.com">MapBox.com</a> | Data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors.',
+		 'maxzoom' => 18
+		  ),
+			
+	);
+ if(isset($mapTileProviders[$mapProvider]) ) {
+		$output .= "// using \$mapProvider = '$mapProvider' as default map tiles.\n";
+	} else {
+		$output .= "// invalid \$mapProvider = '$mapProvider' - using OSM for map tiles instead. -->\n";
+		$mapProvider = 'OSM';
+ }
+ $mapTilesAttrib = ' | Script by <a href="https://saratoga-weather.org/scripts-quake.php#quakePHP">Saratoga-weather.org</a>';
+	$mList = '';  
+	$mFirstMap = '';
+	$mSelMap = '';
+ 	$swxAttrib = ' | Map Script by <a href="https://saratoga-weather.org/">Saratoga-weather.org</a>';
+	$mScheme = $_SERVER['SERVER_PORT']==443?'https':'http';
+	foreach ($mapTileProviders as $n => $M ) {
+		$name = $M['name'];
+		$vname = 'M'.strtolower($name);
+		if(empty($mFirstMap)) {$mFirstMap = $vname; }  // default map is first in list
+		if(strpos($n,'Mapbox') !== false and 
+		   strpos($mapboxAPIkey,'-API-key-') !== false) { 
+			 $mList .= "\n".'// skipping Mapbox - '.$name.' since $mapboxAPIkey is not set'."\n\n"; 
+			 continue;
+		}
+		if($mScheme == 'https' and parse_url($M['URL'],PHP_URL_SCHEME) == 'http') {
+			$mList .= "\n".'// skipping '.$name.' due to http only map tile link while our page is https'."\n\n";
+			continue;
+		}
+		if($mapProvider == $n) {$mSelMap = $vname;}
+		$mList .= 'var '.$vname.' = L.tileLayer(\''.$M['URL'].'\', {
+			maxZoom: '.$M['maxzoom'].',
+			attribution: \''.$M['attrib'].$swxAttrib.'\'
+			});
+';
+		$mOpts[$name] = $vname;
+		
+	}
+	$output .= "// Map tile providers:\n";
+  $output .= $mList;
+	$output .= "// end of map tile providers\n\n";
+	$output .= "var baseLayers = {\n";
+  $mtemp = '';
+	foreach ($mOpts as $n => $v) {
+		$mtemp .= '  "'.$n.'": '.$v.",\n";
+	}
+	$mtemp = substr($mtemp,0,strlen($mtemp)-2)."\n";
+	$output .= $mtemp;
+	$output .= "};	\n";
+	if(empty($mSelMap)) {$mSelMap = $mFirstMap;}
+	// end Generate map tile options
+
+	return(array($output,$mSelMap));
+}
 ?>
 <div style="width:632px; margin:0px auto 0px auto;">
  <table cellspacing="0" cellpadding="0" style="width:100%; margin:0px auto 0px auto; border:1px solid black; background-color:#F5F8FE">
@@ -277,7 +361,8 @@ function over_layB($se,$pc,$po) {
   </tr>
  </table>
  <p> </p>
-<?php  
+<?php
+echo $leafletScript;  
 echo $gmjs;
 echo $zCoord;
 echo $polyLegend; 

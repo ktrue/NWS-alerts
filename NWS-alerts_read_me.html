@@ -87,7 +87,7 @@ p {
        <li>Configurable big icons for the menu side bar</li>
        <li>Optional RSS Feed page</li>
        <li>Data is cached after a fresh download</li>
-       <li>A Google map displays an outlined warning area</li>
+       <li>A Leflet map displays an outlined warning area</li>
     </ul>
 <p>&nbsp;</p>
 <h3>INDEX</h3>
@@ -99,7 +99,6 @@ p {
 <a href="#T4">Standard web page set up</a><br/>
 <a href="#T5">Saratoga Base-USA set up</a><br/>
 <a href="#T6">Troubleshooting</a><br/>
-<a href="#T7">Contact</a><br/>
 </p>
 <p>&nbsp;</p>
 <a name="T1" id="T1"></a>
@@ -130,7 +129,8 @@ This way the alert processing time will not slow down loading the index page bec
     <p><b>nws-alerts-summary-inc.php</b> - This file gathers data from the cache file and transforms it to a formatted output for a summary of alerts page. It gets 'included' into a web page.</p>
     <p><b>nws-summary.php</b> - A standard web page to display a summary of the alerts. It 'includes' the nws-alerts-summary-inc.php file. You can also use this file as a reference on how to 'include' the nws-alerts-summary-inc.php file&nbsp;in your own template theme.</p>
     <p><b>wxadvisory.php</b> - Summary web page for the Saratoga Base-USA templates version 3 or higher. This file replaces your current file that you are using now. A switch in the Settings.php can change what gets displayed on this page. Either the nws-alerts summary data or the default atom-advisory&nbsp;data.</p>
-    <p><b>nws-shapefile.txt</b> - This file is provided by the NWS. It contains all of the zone codes with their latitude and longitude. This file is used for getting the locations for the Google map that is placed in the details page.</p>
+    <p><b>nws-all-zones-inc.php</b> - This file is generated from information provided by the NWS. It contains all of the zone codes with their latitude and longitude. This file is used for getting the locations for the Leaflet map that is placed in the details page.</p>
+    <p><b>nws-alerts.css</b> - this file contains the CSS to display the Leaflet map on the details page.
     <p><b>alert-images folder</b> - All icons and images are in this folder. Upload the complete folder. You may already have this folder with the same icons but there are a few images added in this updated file.</p>
     <p><b>cache folder</b> - This folder contains three cache files and one status text file used for the initial set up.<br/>
     This cache folder along with the four files are uploaded to the web site.</p>
@@ -216,12 +216,12 @@ Limits the number of icons in the side bar. This will display the number of icon
      If you plan to use the RSS Feed, set this to true. Setting this to false will not write the XML file.</p>
    <p><span style="color: #960;">$rssTitle = 'Area Weather Alerts'; &nbsp;&nbsp;&nbsp;// title for the RSS/XML page </span><br/>
 The title to use for the RSS Feed.</p>
-<p><span style="color: #960;">$googleAPI = '-replace-this-with-your-API-key-here-';  &nbsp;&nbsp;&nbsp;// your Google API key; </span><br/> 
-Enter your Google API key to display the alert map. If you leave the code as is, the map will not display.<br />
+<p><span style="color: #960;">$mapboxAPIkey = '-replace-this-with-your-API-key-here-';  &nbsp;&nbsp;&nbsp;// your Google API key; </span><br/> 
+Enter your Mapbox API key to display the OPTIONAL mapbox tiled maps. If you leave the code as is, the free maps will display.<br />
 If this setting is in the file Settings.php, you do not need to change this as it will be overwritten.
 </p>
-   <p><span style="color: #960;">$zoomLevel = '7'; &nbsp;&nbsp;&nbsp;// default zoom level</span><br/> 
-     Default zoom level for the Google map.
+   <p><span style="color: #960;">$zoomLevel = '8'; &nbsp;&nbsp;&nbsp;// default zoom level</span><br/> 
+     Default zoom level for the Leaflet map.
 </p>
    <p><span style="color: #960;">$displaymap = 1; &nbsp;&nbsp;&nbsp;// map display on details page<br/>
    </span>
@@ -229,14 +229,16 @@ If this setting is in the file Settings.php, you do not need to change this as i
  &nbsp;&nbsp;&nbsp;//  1 = display map only when polygon coordinates are provided in alert<br/>
 Polygon coordinates are not always supplied in the alert to outline the affected area geographically. They are generally  included when a warning or a severe statement is issued.
 </p>
-   <p><span style="color: #960;">$mapStyle= 4; &nbsp;&nbsp;&nbsp;// google map style<br/>
+   <p><span style="color: #960;">$mapProvider = 'Esri_WorldTopoMap'; // ESRI topo map - no key needed<br/>
    </span>
- &nbsp;&nbsp;&nbsp;//  1 = ROADMAP displays the normal, default 2D tiles of Google Maps.<br/>
- &nbsp;&nbsp;&nbsp;//  2 = SATELLITE displays photographic tiles.<br/>
- &nbsp;&nbsp;&nbsp;//  3 = HYBRID displays a mix of photographic tiles and a tile layer for prominent features (roads, city names).<br/>
- &nbsp;&nbsp;&nbsp;//  4 = TERRAIN displays physical relief tiles for displaying water features (mountains, rivers, etc.).<br/>
+ &nbsp;&nbsp;&nbsp;//$mapProvider = 'OSM';     // OpenStreetMap - no key needed <br/>
+ &nbsp;&nbsp;&nbsp;//$mapProvider = 'Terrain'; // Terrain map by stamen.com - no key needed <br/>
+ &nbsp;&nbsp;&nbsp;//$mapProvider = 'OpenTopo'; // OpenTopoMap.com - no key needed <br/>
+ &nbsp;&nbsp;&nbsp;//$mapProvider = 'Wikimedia'; // Wikimedia map - no key needed <br/>
+ &nbsp;&nbsp;&nbsp;//$mapProvider = 'MapboxSat';  // Maps by Mapbox.com - API KEY needed in $mapboxAPIkey  <br/>
+ &nbsp;&nbsp;&nbsp;//$mapProvider = 'MapboxTer';  // Maps by Mapbox.com - API KEY needed in $mapboxAPIkey  <br/>
 
-Selectable default map type for the Google map. <br/>
+Selectable default map type for the Leaflet map. <br/>
 </p>
 <p>&nbsp;</p>
 <h3>Setting up pages to display the data</h3>
@@ -281,7 +283,7 @@ You can get your codes from the NWS. <a href="https://alerts.weather.gov/" oncli
 &quot;Prince Georges|MDZ013|MDC033&quot;<br />
 );
 <br /></p>
-    <p>NOTE: If a Zone code is the first code entered, the Google map will display in the details page. If a County code is the first code entered, the Google map will not display.</p>
+    <p>NOTE: If a Zone code is the first code entered, the Leaflet map will display in the details page. If a County code is the first code entered, the Leaflet map will not display.</p>
     <p>NOTE: The FIRST code entered after the county name can not be repeated or used in another location. Any code after the first code can be used again for a different county.</p>
 <p>&nbsp;</p>
 <a name="T4" id="T4"></a>
@@ -396,7 +398,7 @@ The Settings.php file needs to have some code inserted to use the nws-alerts pro
 );<br />
 </p>
 <p>Change the locations and Zone/County codes for the areas you want to cover. These codes can be found at the NWS web site. <a href="https://alerts.weather.gov/" onclick="window.open(this.href,'_blank');return false;">https://alerts.weather.gov/</a></p>
-<p>NOTE: If a Zone code is the first code entered, the Google map will display in the details page. If a County code is the first code entered, the Google map will not display.</p>
+<p>NOTE: If a Zone code is the first code entered, the Leaflet map will display in the details page. If a County code is the first code entered, the Leaflet map will not display.</p>
 <p>NOTE: The FIRST code entered after the county name can not be repeated or used in another location. Any code after the first code can be used again for a different county.</p>
 <p>After you have made the changes, save the file and close it.</p>
 <p><b>header.php</b>
@@ -524,13 +526,12 @@ The most common cause of PHP errors are the file and folder permission level set
 &nbsp; &nbsp; &bull; Manually run the nws-alerts.php file and then view the page source. <a href="#T12">Reference</a><br/>
 &nbsp;&nbsp; &nbsp;&nbsp; Comments will detail the time it took to cull the data and what happened to the cache file.<br/>
 </p>
-<p><b>Google map:</b><br/>
+<p><b>Leaflet map:</b><br/>
 It does not display - <br/>
   &nbsp; &nbsp; &bull; Javascript is not enabled.<br/>
   &nbsp; &nbsp; &bull; Polygon coordinates are not provided in the alert.<br/>
-  &nbsp; &nbsp; &bull; Invalid Google API key.<br/>
   &nbsp; &nbsp; &bull; $displaymap is not set to 1 in the file nws-alerts-config.php.<br/>
-  &nbsp; &nbsp; &bull; A zone code for a location is not in the nws-shapefile.txt file.<br/>
+  &nbsp; &nbsp; &bull; A zone code for a location is not in the nws-all-zones-inc.php file.<br/>
   &nbsp;&nbsp;&nbsp; &nbsp; This file is supplied by the NWS and not all locations are listed.</p>
 <p>The legend shows more alerts than the outlined areas:<br/>
 &nbsp; &nbsp; &bull; Alerts are overlapping with the same shape.</p>
@@ -538,11 +539,6 @@ It does not display - <br/>
 &nbsp; &nbsp; &bull; The Zone code is not near the County code.<br/>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Set $zoomLevel&nbsp; to a lower number to zoom out further.</p>
 <p>&nbsp;</p>
-<a name="T7" id="T7"></a>
-<h3>Contact Me</h3>
-<p>
-I answer all emails and will work with you on a one-to-one basis if you have any issues with this program.</p>
-<p>curly at ricksturf.com</p>
 <p>&nbsp;</p>
    
 	<!-- end #mainContent --></div>

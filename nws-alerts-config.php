@@ -8,8 +8,9 @@
 */################################
 // Version 1.02  03-Aug-2016 - Add and modify switches for nws-alerts V1.37 base
 // Version 1.03  27-Jan-2018 - fix default noCron
+// Version 1.04  14-May-2019 - changes for Leaflet/OpenStreetMaps instead of Google map
 
-$Version = "nws-alerts-config.php - V1.03 - 27-Jan-2018"; 
+$Version = "nws-alerts-config.php - V1.04 - 14-May-2019"; 
 
 // *** denotes settings are overridden by the Settings.php file if using Saratoga Base-USA template set
 
@@ -91,17 +92,20 @@ $useXML   = false;                          // true=create XML RSS feed   false=
 $rssTitle = 'Area Weather Alerts';          // title for the RSS/XML page 
 
 
-## GOOGLE MAP
-$googleAPI  = '-replace-this-with-your-API-key-here-';  // *** your Google API key
-$zoomLevel  = '7';            // default zoom level
+## Leaflet Map
+$mapboxAPIkey = '--mapbox-API-key--';  // use this for the Access Token (API key) to MapBox
+$zoomLevel  = '8';            // default zoom level
 $displaymap = '1';            // map display on details page
 //                               0 = do not display map
 //                               1 = display map only when polygon coordinates are provided in alert
-$mapStyle   = '3';            // google map style
-//                               1 = ROADMAP displays the normal, default 2D tiles of Google Maps.
-//                               2 = SATELLITE displays photographic tiles.
-//                               3 = HYBRID displays a mix of photographic tiles and a tile layer for prominent features (roads, city names).
-//                               4 = TERRAIN displays physical relief tiles for displaying elevation and water features (mountains, rivers, etc.).
+$mapProvider = 'Esri_WorldTopoMap'; // ESRI topo map - no key needed
+//$mapProvider = 'OSM';     // OpenStreetMap - no key needed
+//$mapProvider = 'Terrain'; // Terrain map by stamen.com - no key needed
+//$mapProvider = 'OpenTopo'; // OpenTopoMap.com - no key needed
+//$mapProvider = 'Wikimedia'; // Wikimedia map - no key needed
+// 
+//$mapProvider = 'MapboxSat';  // Maps by Mapbox.com - API KEY needed in $mapboxAPIkey 
+//$mapProvider = 'MapboxTer';  // Maps by Mapbox.com - API KEY needed in $mapboxAPIkey 
 
 ###   END OF SETTINGS   ###
 
