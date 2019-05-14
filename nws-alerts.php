@@ -42,9 +42,10 @@ Version 1.39 - 25-Jan-2017    Fix sort locations as listed in $myZC array
 Version 1.40 - 28-Feb-2017    Fix alert box when Special Weather Statement is issued
 Version 1.41 - 07-Mar-2017    Adjust for PHP 7.1
 Version 1.42 - 27-Jan-2018    Additional adjustments for PHP 7.1, use curl only, Saratoga USA template
+Version 1.43 - 14-May-2019    Changed from Google to Leaflet/OpenStreetMap map displays
 
 */
-$Version = "nws-alerts.php - V1.42 - 27-Jan-2018"; 
+$Version = "nws-alerts.php - V1.43 - 14-May-2019"; 
 
 // self downloader code
 if (isset($_REQUEST['sce']) && ( strtolower($_REQUEST['sce']) == 'view' or
