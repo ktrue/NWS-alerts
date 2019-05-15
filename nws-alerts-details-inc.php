@@ -211,7 +211,7 @@ var map = L.map(\'map\', {
 
 ';
     }
-    $leafletScript = '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.3/leaflet.js"></script>'."\n";
+    $leafletScript = '<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.3/leaflet.js" type="text/javascript"></script>'."\n";
   }
 }
 
