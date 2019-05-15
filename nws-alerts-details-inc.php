@@ -12,8 +12,9 @@
 // Version: 1.04  03-Aug-2016 - Add Google Maps API
 // Version: 1.05  27-Jan-2018 - Fix for PHP 7.1
 // Version  1.06  14-May-2019 - replaced Google Map with Leaflet/OpenStreetMaps
+// Version  1.07  15-May-2019 - fix validation errata
 
-$Version = "nws-alerts-details-inc.php - V1.06 - 14-May-2019"; 
+$Version = "nws-alerts-details-inc.php - V1.07 - 15-May-2019"; 
 
 //ini_set('display_errors', 1);
 //error_reporting(E_ALL);
@@ -187,7 +188,7 @@ if(($displaymap == '1' and !empty($sfll))) {                                    
   .'; border:1px solid black;">&nbsp;&nbsp;&nbsp;&nbsp;</span>
   <span style="color:black; font-size:75%;">'.$asf[$zk].' &nbsp;&nbsp;&nbsp;</span></span> &nbsp;';
         }
-        $zCoord .= "\n</script>\n";
+        $zCoord .= "\n// ]]>\n</script>\n";
         $polyLegend .= "\n </div>\n";
       }
       // put together google map javascript
@@ -196,6 +197,7 @@ if(($displaymap == '1' and !empty($sfll))) {                                    
 <div id="map" style="width: 630px; height: 260px; border:1px solid black"></div>
 <!-- Leaflet 1.0.3 javascript by Saratoga-weather.org -->
 <script type="text/javascript">
+// <![CDATA[
 '.$mapslist.'
 var map = L.map(\'map\', {
 		center: new L.latLng('.$zcllA.'), 
