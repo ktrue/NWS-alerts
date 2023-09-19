@@ -13,8 +13,9 @@
 // Version: 1.05  27-Jan-2018 - Fix for PHP 7.1
 // Version  1.06  14-May-2019 - replaced Google Map with Leaflet/OpenStreetMaps
 // Version  1.07  15-May-2019 - fix validation errata
+// Version  1.08  27-Dec-2022 - fixes for PHP 8.2
 
-$Version = "nws-alerts-details-inc.php - V1.07 - 15-May-2019"; 
+$Version = "nws-alerts-details-inc.php - V1.08 - 27-Dec-2022"; 
 
 //ini_set('display_errors', 1);
 //error_reporting(E_ALL);
@@ -174,9 +175,9 @@ if(($displaymap == '1' and !empty($sfll))) {                                    
       if(!empty($sfll)) {                                                                      //  IF there are shape files
         $cp = count($sfll)*4+1;                                                                //   count shapes files, times by 4 & add - used for different line widths
         $polyLegend = ' <div style="width: 630px; text-align:center; background-color:#FFF">'; //   create the polygon legend
-        $zcllA = preg_replace("/(.*)\,(.*)/", '[${1},${2}]', $zcll);                //   create center location formatted output from coordinates
+        $zcllA = preg_replace("/(.*)\,(.*)/", '[$1,$2]', $zcll);                //   create center location formatted output from coordinates
         foreach($sfll as $zk => $zv) {                                                         //   FOR EACH shape file
-          $cs = preg_replace("/(.*)\,(.*)/", '[${1},${2}]', $zv);                   //     create formatted polygon coordinates
+          $cs = preg_replace("/(.*)\,(.*)/", '[$1,$2]', $zv);                   //     create formatted polygon coordinates
           $cp = $cp/2;                                                                         //     divide number of shape files by 2
 					if($cp < 1.0) {$cp = 1;}
 					if($cp > 5.0) {$cp = 5;}
