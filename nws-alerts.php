@@ -6,6 +6,8 @@
 #
 #   This key file culls alert data
 #   No user settings in this file
+# Original author: Curly at ricksturf.com
+# Now maintained by Ken True - webmaster@saratoga-weather.org
 #
 ###############################################################
 /*
@@ -43,9 +45,10 @@ Version 1.40 - 28-Feb-2017    Fix alert box when Special Weather Statement is is
 Version 1.41 - 07-Mar-2017    Adjust for PHP 7.1
 Version 1.42 - 27-Jan-2018    Additional adjustments for PHP 7.1, use curl only, Saratoga USA template
 Version 1.43 - 14-May-2019    Changed from Google to Leaflet/OpenStreetMap map displays
-
+Version 1.44 - 13-May-2023    fixed errata using alertlog capability and PHP 8.2
+Version 2.00 - 30-Jan-2024    rewrite and adapted for CAP 1.2/new alerts URL from NWS at api.weather.gov
 */
-$Version = "nws-alerts.php - V1.43 - 14-May-2019"; 
+$Version = "nws-alerts.php - V2.00 - 30-Jan-2024"; 
 
 // self downloader code
 if (isset($_REQUEST['sce']) && ( strtolower($_REQUEST['sce']) == 'view' or
@@ -104,8 +107,8 @@ if(!isset($floodType))     {$floodType = false;}
 if(!isset($filter_alerts)) {$filter_alerts = false;}
 
 // overrides from Settings.php if available
-if(is_file("Settings.php")) {include_once("Settings.php");}
-global $SITE, $Status,$noted;
+if(file_exists("Settings.php")) {include_once("Settings.php");}
+global $SITE, $Status,$noted,$doDebug;
 if(isset($SITE['cacheFileDir']))   {$cacheFileDir = $SITE['cacheFileDir'];}
 if(isset($SITE['tz']))             {$ourTZ = $SITE['tz'];}
 if(isset($SITE['NWSalertsCodes'])) {$myZC = $SITE['NWSalertsCodes'];}
@@ -123,7 +126,8 @@ $dataCache = $cacheFileDir.$cacheFileName;                    // path & file nam
 $aboxCache = $cacheFileDir.$aboxFileName;                     // path & file name for the alert box data file
 $iconCache = $cacheFileDir.$iconFileName;                     // path & file name for the big icon data file
 
-$priURL = 'https://alerts.weather.gov/cap/wwaatmget.php?x=';   // NWS URL
+#$priURL = 'https://alerts.weather.gov/cap/wwaatmget.php?x=';   // OLD NWS URL
+$priURL = 'https://api.weather.gov/alerts/active.atom?zone=';   // NEW NWS URL V2.00
 
 // initialize variables
 $vCodes  = '';
@@ -154,6 +158,8 @@ $sortMe  = array();
 $uts = date("U");     // current unix time stamp
 $timenow = date("D m-j-Y g:i a",$uts);
 $seenIt  = array();
+$doDebug = isset($_GET['debug'])?true:false;  // V2.00 addition
+
 // display notice if more than 4 codes are checked without using a cron job
 foreach ($myZC as $myv) {
 	$tlist = explode('|',$myv.'|'); // split spec
@@ -210,31 +216,47 @@ if($updateCache) {
   foreach ($myZC as $mv) {                                                       // FOR EACH zone/county code
     preg_match_all("/[A-Z]{3}\d{3}/i", $mv, $cds);                               //   grab the codes
     $locCode = $cds[0][0];                                                       //   get first code listed after location as reference
+#		$noted .= "<!-- \$cds = ".var_export($cds,true)." -->\n";
+
     $allzc[$locCode] = '';                                                       //   get first code listed after location as reference
     $vCodes .= $locCode.'|';                                                     //   list valid reference codes
     $loc = preg_replace("/\|.*$/", '', $mv);                                     //   grab the locatiion
-    $ccds = count($cds[0]);                                                      //   count codes
-    for ($i=0;$i<$ccds;$i++) {                                                   //   FOR EACH listed code
-      if(!$zData = get_nwsalerts($priURL.$cds[0][$i].'&y=1')) {                              //     IF can't get  preliminary URL
-        $noted .= "<!-- First attempt in getting preliminary URL failed -->\n";  //       create note
+    $ccds = count($cds[0]);  
+		if($doDebug) {$noted .= "<!-- begin updateCache -->\n"; }
+    for ($i=0;$i<$ccds;$i++) { 
+      if(!$zData = get_nwsalerts($priURL.$cds[0][$i])) {                              //     IF can't get  preliminary URL
+        $noted .= "<!-- 1st attempt in getting ".$cds[0][$i]." preliminary URL failed -->\n";  //       create note
         sleep(1);                                                                //       wait a half second
-        if($zData = get_nwsalerts($priURL.$cds[0][$i].'&y=1')) {                             //       IF URL cull was successful
-          $noted .= "<!-- Second attempt successful -->\n\n";                    //         create note
+        if($zData = get_nwsalerts($priURL.$cds[0][$i])) {                             //       IF URL cull was successful
+          $noted .= "<!-- 2nd attempt ".$cds[0][$i]." successful -->\n\n";                    //         create note
        }
         else{                                                                    //       OR ELSE
-          $noted .= "<!-- Second attempt failed & skipped -->\n\n";              //         create note
+          $noted .= "<!-- 2nd attempt failed & skipped ".$cds[0][$i]."  -->\n\n";              //         create note
           $noData = true;                                                        //         set variable
         }
       }
-      (isset($zData->entry)) ? $zSearch = $zData->entry : $zSearch = '';         //     set search varible
-	  
-      if(isset($zSearch[0])) {                                                   //     IF there is data available
-        $noData = '';                                                            //      set variable
+	    if($doDebug) {$noted .= "\n<!-- retrieved ".$cds[0][$i]." zData=\n".print_r($zData,true)."\n --->\n\n";}
+			$zSearch = '';
+      if (isset($zData->entry)) {
+				 $zSearch = $zData->entry;
+				 $noted .= "<!-- \$zSearch has an entry type=";
+				 $noted .= isset($zData->entry[1]->id)?'array count='.count($zData->entry):'single value';
+				 $noted .= " -->\n"; 
+			} 
+			if (!isset($zData->entry->id) and empty($zSearch)) {
+				 $zSearch = gen_no_alert($zData); 
+				 $noted .= "<!-- \$zSearch no entry found - generated 'no alert' entry -->\n";
+			}
+	    if($doDebug) {$noted .= "\n<!-- final zSearch=\n".print_r($zSearch,true)."\n --->\n";}
+
+      if(isset($zSearch[0]->id) and !isset($zSearch->noalert)) {                            //     IF there is data available
+        $noData = false;                                                            //      set variable
         $cccds=count($zSearch);                                                  //       count each alert
         for ($m=0;$m<$cccds;$m++) {                                              //       FOR EACH alert per code
           $za = trim($zSearch[$m]->id);                                          //         get the secondary URL link
           $ta = trim($zSearch[$m]->title);                                       //         get the secondary URL link
-          if(!preg_match('/\?x=\w{12,}/Ui',$za) or preg_match("/$fltrd/",$ta)) { //         IF the link doesn't list an alert URL or the event is filtered
+					if($doDebug) {$noted .= "<!-- \$zSearch is array: m='$m',loc='$loc',locCode='$locCode',za='$za',ta='$ta', -->\n";}
+					if(preg_match("/$fltrd/",$ta)) { //         IF the link doesn't list an alert URL or the event is filtered
             $noA[$loc][] = $locCode;                                             //           assemble array for 'No alerts'
             if(preg_match("/$fltrd/",$ta)){                                      //           IF a filtered event is found
               $noted .= "\n<!-- Filtered out alert location: $loc -->\n";        //             display remark
@@ -244,11 +266,31 @@ if($updateCache) {
           else {                                                                 //         OR ELSE
             $codeID[$za][$loc][] = $locCode;                                     //           assemble array of alert URL's & locations
           }
-        }
-      }
+        }  // end for loop
+      } elseif (isset($zSearch->id)) { // not array
+          $za = trim($zSearch->id);                                          //         get the secondary URL link
+          $ta = trim($zSearch->title);
+					$na = isset($zSearch->noalert)?true:false; 
+					if($doDebug) {$noted .= "<!-- \$zSearch not array: na='$na',loc='$loc',locCode='$locCode',za='$za',ta='$ta', -->\n";}                                      //         get the secondary URL link
+          if(preg_match("/$fltrd/",$ta) or $na) { //         IF the link doesn't list an alert URL or the event is filtered
+            $noA[$loc][] = $locCode;                                             //           assemble array for 'No alerts'
+            if(preg_match("/$fltrd/",$ta)){                                      //           IF a filtered event is found
+              $noted .= "\n<!-- Filtered out alert location: $loc -->\n";        //             display remark
+              $noted .= "<!-- Filtered out event: $ta -->\n\n";                  //             display remark
+            }
+          }
+          else {                                                                 //         OR ELSE
+            $codeID[$za][$loc][] = $locCode;                                     //           assemble array of alert URL's & locations
+          }
+			} // not array+id exists
     }
-  }
+		if($doDebug) {$noted .= "<!-- end updateCache -->\n\n";}  
 
+  }
+	if($doDebug) {
+    $noted .= "<!-- before removals \$noA=\n".var_export($noA,true)."\n -->\n";
+    $noted .= "<!-- before removals \$codeID=\n".var_export($codeID,true)."\n -->\n";
+	}
   // check for codes with 'No alerts' against similar location codes with alerts
   foreach ($codeID as $rk => $rv) {                                         // FOR EACH alert
     $noA = array_diff_ukey($noA, $rv, 'key_compare');                       //  remove location code from no Alerts is alert is found
@@ -264,8 +306,10 @@ if($updateCache) {
   }
   
   $countCodeID = count($codeID);                                                                              // count locations with alerts
+  if($doDebug) {$noted .= "<!-- after removals \$codeID=\n".var_export($codeID,true)."\n -->\n";}
   // get main data
   foreach ($codeID as $ck => $cv) {                                                                           // FOR EACH primary alert
+	  if($doDebug) {$noted .= "<!-- \$cv = '".var_export($cv,true)."'\n \$ck ='".var_export($ck,true)."' -->\n";}
     if(isset($cv)) {                                                                                          //   IF there is an alert
       $clr = ''; $ico = ''; $sev = '';                                                                        //     set variables
       if(!$czR = get_nwsalerts($ck)){                                                                              //     IF can't download each alert
@@ -273,13 +317,13 @@ if($updateCache) {
         sleep(1);                                                                                             //       wait a second
         if($czR = get_nwsalerts($ck)){                                                                             //       IF download alert was successful
           $noted .= "<!-- Second attempt successful -->\n\n";                                                 //         create note
-        }
-        else{                                                                                                 //       OR ELSE
+        } else{                                                                                                 //       OR ELSE
           $noted .= "<!-- Second attempt failed & skipped -->\n\n";                                           //         create failure note
           $czR = '';                                                                                          //         set variable to null
           $noData = true;                                                                                     //         set variable
         }
       }
+			if($doDebug) {$noted .= "<!-- \$czR alert: \n".var_export($czR,true)."\n -->\n\n";}
       (isset($czR->note)) ? $note = trim($czR->note) : $note = '';                                            //     get the note
       (isset($czR->info->event)) ? $event = trim($czR->info->event) : $event = '';                            //     get event
       (isset($czR->info->urgency)) ? $urgency = trim($czR->info->urgency) : $urgency = '';                    //     get urgency
@@ -296,7 +340,7 @@ if($updateCache) {
       (isset($czR->msgType)) ? $msgType = trim($czR->msgType) : $msgType = '';                                //     get message type
       $event = ucwords($event);                                                                               //     set upper case for first word in event
       // check for flood type
-      if($floodType and $czR <> '') {                                    // IF Flood type option is on and data was retrieved
+      if($floodType and $czR <> '' and is_array($czR->info->parameter)) {                                    // IF Flood type option is on and data was retrieved
         foreach($czR->info->parameter AS $element) {                     //  FOR EACH parameter
           if($element->valueName == 'VTEC' ) {                           //   IF there is VTEC
             $vtec2 = trim($element->value);                              //    trim the value
@@ -319,10 +363,10 @@ if($updateCache) {
           }
         }
       }
-      (isset($event)) ? $cis = get_icon($event) : $cis = '';                                                  //     get other variables for event
+      (isset($event)) ? $cis = get_icon($event) : $cis = array();                                                  //     get other variables for event
       (!empty($effective)) ? $effective = strtotime($effective) : $effective = '';                            //     convert time
       (!empty($expires)) ? $expires = strtotime($expires) : $expires = '';                                    //     convert time
-      if(isset($cis)) {                                                                                       //     IF event varaibles
+      if(isset($cis['severity'])) {                                                                                       //     IF event varaibles
         $clr = $cis['color'];                                                                                 //       set event color
         $ico = $cis['icon'];                                                                                  //       set event icon
         $sev = $cis['severity'];                                                                              //       set event severity
@@ -378,7 +422,7 @@ if($updateCache) {
   }
   
   // writing alert data to cache file
-  if($noData == '') {
+  if($noData == false) {
     $dcfo = fopen($dataCache , 'w');                                                         // data cache file open
     if(!$dcfo) {                                                                             // IF unable to open cache file for writing
       $noted .= "<!-- unable to open cache file -->\n";                                      //   display remark
@@ -535,7 +579,7 @@ if($updateCache) {
   }// END IF NOT EMPTY $atData
 	
   // writing alert box data to file	
-  if($useAlertBox and $noData == '') {                                                      // IF using alert box
+  if($useAlertBox and $noData == false) {                                                      // IF using alert box
     $abfo = fopen($aboxCache , 'w');                                                        //   alert box file open
     if(!$abfo) {                                                                            //   IF not alert box file open cache file for writing
       $noted .= "<!-- unable to open cache file -->\n";                                     //     display remark
@@ -624,7 +668,7 @@ if($updateCache) {
     $bigIcos = array_merge($bigIcos,$otherIcos);                                           //   merge icons and remaining icons
   }
 
-  if($noData == '' and $useIcons !==0) {                                                   // IF there is data and able to write cache file
+  if($noData == false and $useIcons !==0) {                                                   // IF there is data and able to write cache file
     $bifo = fopen($iconCache , 'w');                                                       //  icon file open
     if(!$bifo) {                                                                           //  IF not alert box file open cache file for writing
       $noted .= "<!-- unable to open big icon cache file -->\n";                           //   display remark
@@ -637,7 +681,7 @@ if($updateCache) {
   }
 
   // create RSS Feed file	
-  if($useXML and $noData == '') {                                                         // IF using RSS feed and there is data
+  if($useXML and $noData == false) {                                                         // IF using RSS feed and there is data
     if(!empty($atData)) {                                                                 //   IF there is data
       foreach ($atData as $aak => $aav) {                                                 //     FOR EACH location with data
         foreach ($aav as $avk => $avv) {                                                  //       FOR EACH alert data, creat RSS data array
@@ -722,6 +766,7 @@ if($logAlerts) {                                                           // IF
     }
     if(is_file($log_file)) {                                               //   IF the log file exists
       include($log_file);                                                  //    include the log file
+			if(!is_array($daily_log)) {$daily_log=array();}
       foreach($dlog as $dlk => $dlv) {                                     //    FOR EACH alert
         if(!in_array($dlv, $daily_log)) {                                  //     IF alert is not in the cache file
           $dy_log[] = $dlv;                                                //       create array with alert data
@@ -736,7 +781,8 @@ if($logAlerts) {                                                           // IF
     }
   }		
   if($added_alert) {                                                                   // IF write data is enabled
-    $fplf = fopen($log_file,'wb');                                                     //  open the log file
+    $fplf = fopen($log_file,'wb');
+		if(!is_array($dly_log)) {$dly_log = array();}                                      //  open the log file
     if($fplf) {                                                                        //  IF cache file opens
       fwrite($fplf, "<?php \n \n".'$daily_log = '. var_export($dly_log, 1).";\n\n?>"); //   write first line for php ant top warnings tag
       fclose($fplf);                                                                   //   close file
@@ -748,6 +794,26 @@ if($logAlerts) {                                                           // IF
     }
   }
 }
+
+$time_stopTotal = load_timer();
+$total_times = ($time_stopTotal - $time_startTotal);
+$total_time = sprintf("%01.4f", round($time_stopTotal - $time_startTotal, 4));
+// $total_time;
+$noted .= "<!-- Total process time: $total_time seconds -->\n";                 //   display remark
+echo $Status;
+echo $noted;
+// create status file
+$notes = $noted;
+$notes = preg_replace('/<!-- /','',$notes);
+$notes = preg_replace('/ -->\n/',"\n",$notes);
+$notes = "Script characteristics on last page load:\nLast update: ".date("D m-d-Y H:i T")."\n".$notes;
+
+$notesfo = fopen($cacheFileDir.'nws-notes.txt', 'w');                           // open note file
+$write = fputs($notesfo, $notes);                                               // write notes to file
+fclose($notesfo);                                                               // close the file
+# ----------------- end of main program ---------------------------
+
+# ----------------- support functions -----------------------------
 
 // FUNCTION - get color, severity, icon
 function get_icon($evnt) {
@@ -795,7 +861,8 @@ function get_icon($evnt) {
     array('N'=>'River Flood Warning',             'C'=>'#D00', 'S'=>'39', 'I'=>'FLW.gif'),
     array('N'=>'Shelter In Place Warning',        'C'=>'#D00', 'S'=>'40', 'I'=>'WSW.gif'),
     array('N'=>'Sleet Warning',                   'C'=>'#D00', 'S'=>'41', 'I'=>'IPW.gif'),
-    array('N'=>'Special Marine Warning',          'C'=>'#D00', 'S'=>'42', 'I'=>'SMW.gif'),
+    array('N'=>'Snow Squall Warning',             'C'=>'#D00', 'S'=>'2',  'I'=>'WSW.gif'),  #### ADDED  Ver 1.44
+		array('N'=>'Special Marine Warning',          'C'=>'#D00', 'S'=>'42', 'I'=>'SMW.gif'),
     array('N'=>'Typhoon Warning',                 'C'=>'#D00', 'S'=>'43', 'I'=>'WSW.gif'),
     array('N'=>'Volcano Warning',                 'C'=>'#D00', 'S'=>'44', 'I'=>'WSW.gif'),
     array('N'=>'Wind Chill Warning',              'C'=>'#D00', 'S'=>'45', 'I'=>'WCW.gif'),
@@ -970,9 +1037,6 @@ function get_icon($evnt) {
   return $a;
 }
 
-
-#####   FUNCTIONS
-
 // FUNCTION - get data cURL
 function get_nwsalerts($url)    {
   global $noted,$Version;                                                          // set global
@@ -986,6 +1050,16 @@ function get_nwsalerts($url)    {
   curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);                            // 3 sec connection timeout
   curl_setopt($ch, CURLOPT_TIMEOUT, 2);                                   // 2 sec data timeout
   curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);                         // return the data transfer
+  curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (nws-alerts.php - saratoga-weather.org)');
+//    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0');
+  if(strpos($url,'api.weather.gov') !== false) {
+		curl_setopt($ch, CURLOPT_HTTPHEADER, // request LD-JSON format
+			array(
+				"Accept: application/cap+xml",
+				"Cache-control: no-cache",
+				"Pragma: akamai-x-cache-on, akamai-x-get-request-id"
+			));
+	}
   $data = curl_exec($ch);                                                 // execute session
   if(curl_error($ch) <> '') {                                             // IF there is an error
    $noted .= "\n<!-- $tn -->\n";                                          //  display time notice
@@ -1022,17 +1096,19 @@ function get_nwsalerts($url)    {
 
   curl_close($ch);                                                        // close the cURL session
   
-  if(preg_match("|text\/xml|",$header_type)) {                            // IF text/xml is found in the header
-   $data = @simplexml_load_string($data);                                 //  xml string to object
+  if(preg_match("|xml|",$header_type)) {                            // IF text/xml is found in the header
+   $data = @simplexml_load_string($data);
    $noted .= "<!-- XML source: $url -->\n";
 	 $noted .= $tStatus;
+	 $noted .= "<!-- header type='$header_type' -->\n";
   }
   else {
-    $data = '';
-		$noted .= "<!-- non XML source: $url -->\n";
-		$noted .= $tStatus;
-		$noted .= "<!-- header type='$header_type' -->\n";
+	 $noted .= "<!-- non XML source: $url -->\n";
+	 $noted .= $tStatus;
+	 $noted .= "<!-- header type='$header_type' -->\n";
+   $data = false;
   }
+	#$noted .= "<!-- \$data xml dump \n".var_export($data,true)."\n -->\n\n";  
   return $data;                                                           // return data
 }// end get_nwsalerts
 
@@ -1116,26 +1192,63 @@ function create_bi($a,$b,$c,$d,$e,$g,$h,$i) {
   return $bico;
 }// end convert big icons function
 
+// FUNCTION - return time
 function load_timer() { // mchallis added function
   list($usec, $sec) = explode(" ", microtime());
   return ((float) $usec + (float) $sec);
 } // end function load_timeR
 
-$time_stopTotal = load_timer();
-$total_times = ($time_stopTotal - $time_startTotal);
-$total_time = sprintf("%01.4f", round($time_stopTotal - $time_startTotal, 4));
-// $total_time;
-$noted .= "<!-- Total process time: $total_time seconds -->\n";                 //   display remark
-echo $Status;
-echo $noted;
-// create status file
-$notes = $noted;
-$notes = preg_replace('/<!-- /','',$notes);
-$notes = preg_replace('/ -->\n/',"\n",$notes);
-$notes = "Script characteristics on last page load:\nLast update: ".date("D m-d-Y H:i T")."\n".$notes;
+// FUNCTION - generate fake no-data alert for CAP 1.2 no alerts entries
+function gen_no_alert($zData) { // Added in V2.00
+global $noted,$doDebug;
+$output = '';
 
-$notesfo = fopen($cacheFileDir.'nws-notes.txt', 'w');                           // open note file
-$write = fputs($notesfo, $notes);                                               // write notes to file
-fclose($notesfo);                                                               // close the file
+/* input CAP1.2 with no <event> entry:
+
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:cap="urn:oasis:names:tc:emergency:cap:1.2">
+    <id>https://api.weather.gov/alerts.atom?zone%5B0%5D=CAZ513&amp;limit=500&amp;active=1</id>
+    <generator>NWS CAP Server</generator>
+    <updated>2024-01-23T00:30:00+00:00</updated>
+    <author>
+        <name>w-nws.webmaster@noaa.gov</name>
+    </author>
+    <title>Current watches, warnings, and advisories for Santa Clara Valley Including San Jose (CAZ513) CA</title>
+    <link rel="self" href="https://api.weather.gov/alerts.atom?zone%5B0%5D=CAZ513&amp;limit=500&amp;active=1"/>
+</feed>
+
+Need something in <event> section like:
+
+  	<entry>
+  	<id>https://alerts.weather.gov/cap/wwaatmget.php?x=CAZ513&amp;y=0</id>
+  	<updated>2024-01-29T16:13:41+00:00</updated>
+  	<author>
+  	<name>w-nws.webmaster@noaa.gov</name>
+  	</author>
+  	<title>There are no active watches, warnings or advisories</title>
+  	<link href="https://alerts.weather.gov/cap/wwaatmget.php?x=CAZ513&amp;y=0"/>
+  	</entry> 
+*/
+
+  $id = isset($zData->id)?(string)$zData->id:'';
+	$id = str_replace('&','&amp;',$id);
+	$updated = isset($zData->updated)?(string)$zData->updated:'';
+	$author = isset($zData->author->name)?(string)$zData->author->name:'';
+	$link = $id;
+	
+$rawXML = '<entry>
+  <id>'.$id.'</id>
+  <updated>'.$updated.'</updated>
+  <author>
+    <name>'.$author.'</name>
+  </author>
+  <title>There are no active watches, warnings or advisories</title>
+  <link href="'.$link.'"/>
+	<noalert>1</noalert>
+</entry>
+'; 
+  $output = simplexml_load_string($rawXML);
+	if($doDebug) {$noted .= "<!-- gen_no_entry generated \n".print_r($output,true)." -->\n"; }
+  return($output);
+}
 
 // end nws-alerts.php 
