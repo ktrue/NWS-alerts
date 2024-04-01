@@ -14,8 +14,9 @@
 // Version  1.06  14-May-2019 - replaced Google Map with Leaflet/OpenStreetMaps
 // Version  1.07  15-May-2019 - fix validation errata
 // Version  1.08  27-Dec-2022 - fixes for PHP 8.2
+// Version  1.09  01-Apr-2024 - added pin for station location on map
 
-$Version = "nws-alerts-details-inc.php - V1.08 - 27-Dec-2022"; 
+$Version = "nws-alerts-details-inc.php - V1.09 - 01-Apr-2024"; 
 
 //ini_set('display_errors', 1);
 //error_reporting(E_ALL);
@@ -26,6 +27,12 @@ include('nws-alerts-config.php');        // include the config/settings file
 global $SITE;
 if(isset($SITE['cacheFileDir'])) {$cacheFileDir = $SITE['cacheFileDir'];}
 if(isset($SITE['mapboxAPIkey'])) {$mapboxAPIkey = $SITE['mapboxAPIkey'];}
+if(isset($SITE['latitude']))     {$myLat = $SITE['latitude'];}
+if(isset($SITE['longitude']))    {$myLon = $SITE['longitude'];}
+if(isset($SITE['cityname']))     {$myLoc = $SITE['cityname'];}
+
+#list($myLat,$myLon,$myLoc) = array(31.42,-88.60,'Test Loc');
+
 if(isset ($SITE['tz']))          {$ourTZ = $SITE['tz'];}
 if(!function_exists('date_default_timezone_set')) {
   putenv("TZ=" . $ourTZ);
@@ -200,6 +207,8 @@ if(($displaymap == '1' and !empty($sfll))) {                                    
 <script type="text/javascript">
 // <![CDATA[
 '.$mapslist.'
+var imagesDir = \''.$icons_folder.'\';  // our marker/cluster images locations
+
 var map = L.map(\'map\', {
 		center: new L.latLng('.$zcllA.'), 
 		zoom: '.$zoomLevel.',
@@ -209,6 +218,23 @@ var map = L.map(\'map\', {
 
   L.control.scale().addTo(map);
   L.control.layers(baseLayers).addTo(map);
+	
+  var markerImageGreen  = new L.icon({ 
+		iconUrl: imagesDir+"/location.png",
+		iconSize: [12, 20],
+		iconAnchor: [6, 20]
+    });
+	
+	title = "'.$myLoc.' (our station location)";
+	var marker = new L.marker(new L.LatLng('.$myLat.','.$myLon.'),{
+		clickable: true,
+		draggable: false,
+		icon: markerImageGreen,
+		title: title,
+	});
+	marker.bindPopup(title);
+	marker.addTo(map);
+
 
 ';
     }
