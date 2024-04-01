@@ -9,8 +9,9 @@
 // Version 1.02  03-Aug-2016 - Add and modify switches for nws-alerts V1.37 base
 // Version 1.03  27-Jan-2018 - fix default noCron
 // Version 1.04  14-May-2019 - changes for Leaflet/OpenStreetMaps instead of Google map
+// Version 1.05  01-Apr-2025 - added myLat,myLong,myLoc variables for map display
 
-$Version = "nws-alerts-config.php - V1.04 - 14-May-2019"; 
+$Version = "nws-alerts-config.php - V1.05 - 01-Apr-2024"; 
 
 // *** denotes settings are overridden by the Settings.php file if using Saratoga Base-USA template set
 
@@ -30,12 +31,18 @@ $myZC = array(
 
 
 ## MAIN SETTINGS
-// time zone
+// time zone (overridden by $SITE['tz''] in Saratoga Template
 $ourTZ         = 'America/Los_Angeles';        // *** Time Zone     http://www.php.net/manual/en/timezones.america.php
 
 // folders
-$cacheFileDir  = './cache/';                // *** default cache file directory
+$cacheFileDir  = './cache/';                // *** default cache file directory - overridden by $SITE['cacheFileDir']
+
 $icons_folder  = './alert-images';          // folder that contains the icons. No slash on end
+
+// location info for map pin (V1.05)
+$myLat  = '37.2746';   // overridden by $SITE['latitude'] in Saratoga template
+$myLon  = '-122.0229'; // overridden by $SITE['longitude'] in Saratoga template
+$myLoc  = 'Saratoga';  // overridden by $SITE['cityname'] in Saratoga template
 
 // file names
 $cacheFileName = 'nws-alertsMainData.php';  // main data cache file name
