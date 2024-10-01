@@ -47,8 +47,10 @@ Version 1.42 - 27-Jan-2018    Additional adjustments for PHP 7.1, use curl only,
 Version 1.43 - 14-May-2019    Changed from Google to Leaflet/OpenStreetMap map displays
 Version 1.44 - 13-May-2023    fixed errata using alertlog capability and PHP 8.2
 Version 2.00 - 30-Jan-2024    rewrite and adapted for CAP 1.2/new alerts URL from NWS at api.weather.gov
+Version 2.01 - 31-Jan-2024    add ability to use lat,long instead of Forecast/County zones for alerts at point
+Version 2.02 - 01-Oct-2024    update for alert names available from NWS on 01-Oct-2024 (https://www.weather.gov/help-map/)
 */
-$Version = "nws-alerts.php - V2.00 - 30-Jan-2024"; 
+$Version = "nws-alerts.php - V2.02 - 01-Oct-2024"; 
 
 // self downloader code
 if (isset($_REQUEST['sce']) && ( strtolower($_REQUEST['sce']) == 'view' or
@@ -127,8 +129,8 @@ $aboxCache = $cacheFileDir.$aboxFileName;                     // path & file nam
 $iconCache = $cacheFileDir.$iconFileName;                     // path & file name for the big icon data file
 
 #$priURL = 'https://alerts.weather.gov/cap/wwaatmget.php?x=';   // OLD NWS URL
-$priURL = 'https://api.weather.gov/alerts/active.atom?zone=';   // NEW NWS URL V2.00
-
+$priURLzone = 'https://api.weather.gov/alerts/active.atom?zone=';   // NEW NWS URL V2.00
+$priURLpoint = 'https://api.weather.gov/alerts/active?point=';      // NEW Point URL V2.01
 // initialize variables
 $vCodes  = '';
 $cmyzc   = 0;  // kt
@@ -214,8 +216,16 @@ if($updateCache) {
   }
   // get preliminary links
   foreach ($myZC as $mv) {                                                       // FOR EACH zone/county code
-    preg_match_all("/[A-Z]{3}\d{3}/i", $mv, $cds);                               //   grab the codes
-    $locCode = $cds[0][0];                                                       //   get first code listed after location as reference
+    preg_match_all("/[A-Z]{3}\d{3}/i", $mv, $cds); 
+		if(!isset($cds[0][0])) {
+			preg_match_all('![0-9\.]+,[0-9\-\.]+!',$mv,$cds);
+		}
+		if(!isset($cds[0][0])) {
+			$noted = "<!-- bad zone/point spec '$mv' -- ignored -->\n";
+			continue;
+		}
+    $locCode = $cds[0][0];
+		
 #		$noted .= "<!-- \$cds = ".var_export($cds,true)." -->\n";
 
     $allzc[$locCode] = '';                                                       //   get first code listed after location as reference
@@ -224,6 +234,7 @@ if($updateCache) {
     $ccds = count($cds[0]);  
 		if($doDebug) {$noted .= "<!-- begin updateCache -->\n"; }
     for ($i=0;$i<$ccds;$i++) { 
+		  $priURL = (preg_match('!^[0-9.]+,[\-0-9.]+$!',$cds[0][$i]))?$priURLpoint:$priURLzone;
       if(!$zData = get_nwsalerts($priURL.$cds[0][$i])) {                              //     IF can't get  preliminary URL
         $noted .= "<!-- 1st attempt in getting ".$cds[0][$i]." preliminary URL failed -->\n";  //       create note
         sleep(1);                                                                //       wait a half second
@@ -301,6 +312,7 @@ if($updateCache) {
   // trim down No alert array
   foreach ($noA as $nk => $nv) {                                                                              // FOR EACH No alert
     $noAlrt[$nk] = $nv[0];                                                                                    //   create a new array
+		$priURL = (preg_match('!^[0-9.]+,[\-0-9.]+$!',$nv[0]))?$priURLpoint:$priURLzone;
     $norss[$nk][] = array('150',$nk,$nv[0],'No Alerts',1
                           ,'Severe weather is not expected',$priURL.$nv[0].'&amp;y=0');                       //   create array for RSS/XML
   }
@@ -445,7 +457,7 @@ if($updateCache) {
     get_scc('150');                                                                          //   set alert box backgound color and text color
     $box .= "\n<!-- nws-alerts box -->\n"
          .'<div style="width:'.$aBox_Width
-         .'; border:solid thin #006699; margin:0px auto 0px auto;">'."\n";
+         .'; border:none; margin:0px auto 0px auto;">'."\n";
     if($showNone) {                                                                          //   IF showing "NONE', create alert box with No Alert
       $box .= ' <div style=" '.$bc.' '.$tc.' padding:4px 8px 4px 8px; text-align: center"><a href="'
            .$summaryURL.'" title=" &nbsp;View summary" style="text-decoration:none; '.$tc
@@ -490,7 +502,7 @@ if($updateCache) {
     // set alert box style
     $box .= "\n<!-- nws-alerts box -->\n"
          .'<div style="width:'.$aBox_Width
-         .'; border:solid thin #000; margin:0px auto 0px auto;">'."\n"
+         .'; border:none; margin:0px auto 0px auto;">'."\n"
          .' <div style=" '.$bc.' '.$ct.' '.$tc.' '.'padding:4px 8px 4px 8px">'."\n";
 
     // duplicate events will be displayed
@@ -501,7 +513,7 @@ if($updateCache) {
         ($titleNewline) ? $spc = ' ' : $spc = '';                                                //    set spacing
         $box .= '  <span style="white-space: nowrap">&nbsp;<a href="'.$alertURL.'?a='
              .$sblv[0][0][2].'" '.$setStyle.' title=" &nbsp;View details"><b>'.$abt
-             .'</b></a></span>&nbsp;&nbsp;-';                                                    //    icon & event title
+             .'</b></a></span>&nbsp;&nbsp;';                                                    //    icon & event title
         $csblv = count($sblv);                                                                   //    count each string
         for($i=0;$i<$csblv;$i++) {                                                               //    FOR EACH string of data
           $sblv[$i][0][3] = str_replace(" ", "&nbsp;", $sblv[$i][0][3]);                         //       replace spaces
@@ -819,150 +831,120 @@ fclose($notesfo);                                                               
 function get_icon($evnt) {
   $a = array();
   $alert_types = array (
-    array('N'=>'Tornado Warning',                 'C'=>'#A00', 'S'=>'0', 'I'=>'TOR.gif'),
-    array('N'=>'Severe Thunderstorm Warning',     'C'=>'#B11', 'S'=>'1', 'I'=>'SVR.gif'),
-    array('N'=>'Blizzard Warning',                'C'=>'#D00', 'S'=>'2', 'I'=>'WSW.gif'),
-    array('N'=>'Hurricane Force Wind Warning',    'C'=>'#D00', 'S'=>'3', 'I'=>'HUW.gif'),
-    array('N'=>'Heavy Snow Warning',              'C'=>'#D00', 'S'=>'4', 'I'=>'WSW.gif'),
-    array('N'=>'Hurricane Warning',               'C'=>'#D00', 'S'=>'5', 'I'=>'HUW.gif'),
-    array('N'=>'Hurricane Wind Warning',          'C'=>'#D00', 'S'=>'6', 'I'=>'HUW.gif'),
-    array('N'=>'Tsunami Warning',                 'C'=>'#D00', 'S'=>'7', 'I'=>'SMW.gif'),
-    array('N'=>'Tropical Storm Warning',          'C'=>'#D00', 'S'=>'8', 'I'=>'TRW.gif'),
-    array('N'=>'Winter Storm Warning',            'C'=>'#D00', 'S'=>'9', 'I'=>'WSW.gif'),
-    array('N'=>'Winter Weather Warning',          'C'=>'#D00', 'S'=>'10', 'I'=>'WSW.gif'),
-    array('N'=>'Ashfall Warning',                 'C'=>'#D00', 'S'=>'11', 'I'=>'EWW.gif'),
-    array('N'=>'Avalanche Warning',               'C'=>'#D00', 'S'=>'12', 'I'=>'WSW.gif'),
-    array('N'=>'Civil Danger Warning',            'C'=>'#D00', 'S'=>'13', 'I'=>'WSW.gif'),
-    array('N'=>'Coastal Flood Warning',           'C'=>'#D00', 'S'=>'14', 'I'=>'CFW.gif'),
-    array('N'=>'Dust Storm Warning',              'C'=>'#D00', 'S'=>'15', 'I'=>'EWW.gif'),
-    array('N'=>'Earthquake Warning',              'C'=>'#D00', 'S'=>'16', 'I'=>'WSW.gif'),
-    array('N'=>'Extreme Cold Warning',            'C'=>'#D00', 'S'=>'17', 'I'=>'HZW.gif'),
-    array('N'=>'Excessive Heat Warning',          'C'=>'#D00', 'S'=>'18', 'I'=>'EHW.gif'),
-    array('N'=>'Extreme Wind Warning',            'C'=>'#D00', 'S'=>'19', 'I'=>'EWW.gif'),
-    array('N'=>'Fire Warning',                    'C'=>'#D00', 'S'=>'20', 'I'=>'WSW.gif'),
-    array('N'=>'Flash Flood Warning',             'C'=>'#D00', 'S'=>'21', 'I'=>'FFW.gif'),
-    array('N'=>'Areal Flood Warning',             'C'=>'#D00', 'S'=>'22', 'I'=>'FFW.gif'),
-    array('N'=>'River Flood Warning',             'C'=>'#D00', 'S'=>'23', 'I'=>'FLW.gif'),
-    array('N'=>'Flood Warning',                   'C'=>'#D00', 'S'=>'24', 'I'=>'FFW.gif'),
-    array('N'=>'Freeze Warning',                  'C'=>'#D00', 'S'=>'25', 'I'=>'FZW.gif'),
-    array('N'=>'Gale Warning',                    'C'=>'#D00', 'S'=>'26', 'I'=>'HWW.gif'),
-    array('N'=>'Hard Freeze Warning',             'C'=>'#D00', 'S'=>'27', 'I'=>'HZW.gif'),
-    array('N'=>'Hazardous Materials Warning',     'C'=>'#D00', 'S'=>'28', 'I'=>'WSW.gif'),
-    array('N'=>'Hazardous Seas Warning',          'C'=>'#D00', 'S'=>'29', 'I'=>'SMW.gif'),
-    array('N'=>'High Surf Warning',               'C'=>'#D00', 'S'=>'20', 'I'=>'SMW.gif'),
-    array('N'=>'High Wind Warning',               'C'=>'#D00', 'S'=>'31', 'I'=>'HWW.gif'),
-    array('N'=>'Ice Storm Warning',               'C'=>'#D00', 'S'=>'32', 'I'=>'ISW.gif'),
-    array('N'=>'Lake Effect Snow Warning',        'C'=>'#D00', 'S'=>'33', 'I'=>'SMW.gif'),
-    array('N'=>'Lakeshore Flood Warning',         'C'=>'#D00', 'S'=>'34', 'I'=>'SMW.gif'),
-    array('N'=>'Law Enforcement Warning',         'C'=>'#D00', 'S'=>'35', 'I'=>'WSA.gif'),
-    array('N'=>'Nuclear Power Plant Warning',     'C'=>'#D00', 'S'=>'36', 'I'=>'WSW.gif'),
-    array('N'=>'Radiological Hazard Warning',     'C'=>'#D00', 'S'=>'37', 'I'=>'WSW.gif'),
-    array('N'=>'Red Flag Warning',                'C'=>'#D00', 'S'=>'38', 'I'=>'FWW.gif'),
-    array('N'=>'River Flood Warning',             'C'=>'#D00', 'S'=>'39', 'I'=>'FLW.gif'),
-    array('N'=>'Shelter In Place Warning',        'C'=>'#D00', 'S'=>'40', 'I'=>'WSW.gif'),
-    array('N'=>'Sleet Warning',                   'C'=>'#D00', 'S'=>'41', 'I'=>'IPW.gif'),
-    array('N'=>'Snow Squall Warning',             'C'=>'#D00', 'S'=>'2',  'I'=>'WSW.gif'),  #### ADDED  Ver 1.44
-		array('N'=>'Special Marine Warning',          'C'=>'#D00', 'S'=>'42', 'I'=>'SMW.gif'),
-    array('N'=>'Typhoon Warning',                 'C'=>'#D00', 'S'=>'43', 'I'=>'WSW.gif'),
-    array('N'=>'Volcano Warning',                 'C'=>'#D00', 'S'=>'44', 'I'=>'WSW.gif'),
-    array('N'=>'Wind Chill Warning',              'C'=>'#D00', 'S'=>'45', 'I'=>'WCW.gif'),
-    array('N'=>'Storm Warning',                   'C'=>'#D00', 'S'=>'46', 'I'=>'SVR.gif'),
-    array('N'=>'Tropical Storm Wind Warning',     'C'=>'#D00', 'S'=>'47', 'I'=>'TRW.gif'),  #### ADDED  ver 1.24
-    array('N'=>'Shelter In Place Warning',        'C'=>'#D00', 'S'=>'48', 'I'=>'CEM.gif'),  #### ADDED  ver 1.26
-
-    array('N'=>'Air Stagnation Advisory',         'C'=>'#F60', 'S'=>'50', 'I'=>'SCY.gif'),
-    array('N'=>'Ashfall Advisory',                'C'=>'#F60', 'S'=>'51', 'I'=>'WSW.gif'),
-    array('N'=>'Blowing Dust Advisory',           'C'=>'#F60', 'S'=>'52', 'I'=>'HWW.gif'),
-    array('N'=>'Blowing Snow Advisory',           'C'=>'#F60', 'S'=>'53', 'I'=>'WSA.gif'),
-    array('N'=>'Coastal Flood Advisory',          'C'=>'#F60', 'S'=>'54', 'I'=>'FLS.gif'),
-    array('N'=>'Small Craft Advisory',            'C'=>'#F60', 'S'=>'55', 'I'=>'SCY.gif'),
-    array('N'=>'Dense Fog Advisory',              'C'=>'#F60', 'S'=>'56', 'I'=>'FGY.gif'),
-    array('N'=>'Dense Smoke Advisory',            'C'=>'#F60', 'S'=>'57', 'I'=>'SMY.gif'),
-    array('N'=>'Brisk Wind Advisory',             'C'=>'#F60', 'S'=>'58', 'I'=>'WIY.gif'),
-    array('N'=>'Flash Flood Advisory',            'C'=>'#F60', 'S'=>'59', 'I'=>'FLS.gif'),
-    array('N'=>'Flood Advisory',                  'C'=>'#F60', 'S'=>'60', 'I'=>'FLS.gif'),
-    array('N'=>'Freezing Drizzle Advisory',       'C'=>'#F60', 'S'=>'61', 'I'=>'SWA.gif'),
-    array('N'=>'Freezing Fog Advisory',           'C'=>'#F60', 'S'=>'62', 'I'=>'FZW.gif'),
-    array('N'=>'Freezing Rain Advisory',          'C'=>'#F60', 'S'=>'63', 'I'=>'SWA.gif'),
-    array('N'=>'Freezing Spray Advisory',         'C'=>'#F60', 'S'=>'64', 'I'=>'SWA.gif'),
-    array('N'=>'Frost Advisory',                  'C'=>'#F60', 'S'=>'65', 'I'=>'FRY.gif'),
-    array('N'=>'Heat Advisory',                   'C'=>'#F60', 'S'=>'66', 'I'=>'HTY.gif'),
-    array('N'=>'Heavy Freezing Spray Warning',    'C'=>'#F60', 'S'=>'67', 'I'=>'SWA.gif'),
-    array('N'=>'High Surf Advisory',              'C'=>'#F60', 'S'=>'68', 'I'=>'SUY.gif'),
-    array('N'=>'Hydrologic Advisory',             'C'=>'#F60', 'S'=>'69', 'I'=>'FLS.gif'),
-    array('N'=>'Lake Effect Snow Advisory',       'C'=>'#F60', 'S'=>'70', 'I'=>'WSA.gif'),
-    array('N'=>'Lake Effect Snow and Blowing Snow Advisory', 'C'=>'#F60', 'S'=>'71', 'I'=>'WSA.gif'),
-    array('N'=>'Lake Wind Advisory',              'C'=>'#F60', 'S'=>'72', 'I'=>'LWY.gif'),
-    array('N'=>'Lakeshore Flood Advisory',        'C'=>'#F60', 'S'=>'73', 'I'=>'FLS.gif'),
-    array('N'=>'Low Water Advisory',              'C'=>'#F60', 'S'=>'74', 'I'=>'FFA.gif'),
-    array('N'=>'Sleet Advisory',                  'C'=>'#F60', 'S'=>'75', 'I'=>'SWA.gif'),
-    array('N'=>'Snow Advisory',                   'C'=>'#F60', 'S'=>'76', 'I'=>'WSA.gif'),
-    array('N'=>'Snow and Blowing Snow Advisory',  'C'=>'#F60', 'S'=>'77', 'I'=>'WSA.gif'),
-    array('N'=>'Tsunami Advisory',                'C'=>'#F60', 'S'=>'78', 'I'=>'SWA.gif'),
-    array('N'=>'Wind Advisory',                   'C'=>'#F60', 'S'=>'79', 'I'=>'WIY.gif'),
-    array('N'=>'Wind Chill Advisory',             'C'=>'#F60', 'S'=>'80', 'I'=>'WCY.gif'),
-    array('N'=>'Winter Weather Advisory',         'C'=>'#F60', 'S'=>'81', 'I'=>'WWY.gif'),
-
-    array('N'=>'Tornado Watch',                   'C'=>'#F93', 'S'=>'90', 'I'=>'TOA.gif'),
-    array('N'=>'Severe Thunderstorm Watch',       'C'=>'#F93', 'S'=>'91', 'I'=>'SVA.gif'),
-    array('N'=>'High Wind Watch',                 'C'=>'#F93', 'S'=>'92', 'I'=>'WIY.gif'),
-    array('N'=>'Hurricane Force Wind Watch',      'C'=>'#F93', 'S'=>'93', 'I'=>'HWW.gif'),
-    array('N'=>'Hurricane Watch',                 'C'=>'#F93', 'S'=>'94', 'I'=>'HUA.gif'),
-    array('N'=>'Hurricane Wind Watch',            'C'=>'#F93', 'S'=>'95', 'I'=>'HWW.gif'),
-    array('N'=>'Typhoon Watch',                   'C'=>'#F93', 'S'=>'96', 'I'=>'HUA.gif'),
-    array('N'=>'Avalanche Watch',                 'C'=>'#F93', 'S'=>'97', 'I'=>'WSA.gif'),
-    array('N'=>'Blizzard Watch',                  'C'=>'#F93', 'S'=>'98', 'I'=>'WSA.gif'),
-    array('N'=>'Coastal Flood Watch',             'C'=>'#F93', 'S'=>'99', 'I'=>'CFA.gif'),
-    array('N'=>'Excessive Heat Watch',            'C'=>'#F93', 'S'=>'100', 'I'=>'EHA.gif'),
-    array('N'=>'Extreme Cold Watch',              'C'=>'#F93', 'S'=>'101', 'I'=>'HZA.gif'),
-    array('N'=>'Flash Flood Watch',               'C'=>'#F93', 'S'=>'102', 'I'=>'FFA.gif'),
-    array('N'=>'Fire Weather Watch',              'C'=>'#F93', 'S'=>'103', 'I'=>'FWA.gif'),
-    array('N'=>'Flood Watch',                     'C'=>'#F93', 'S'=>'105', 'I'=>'FFA.gif'),
-    array('N'=>'Freeze Watch',                    'C'=>'#F93', 'S'=>'105', 'I'=>'FZA.gif'),
-    array('N'=>'Gale Watch',                      'C'=>'#F93', 'S'=>'106', 'I'=>'GLA.gif'),
-    array('N'=>'Hard Freeze Watch',               'C'=>'#F93', 'S'=>'107', 'I'=>'HZA.gif'),
-    array('N'=>'Hazardous Seas Watch',            'C'=>'#F93', 'S'=>'108', 'I'=>'SUY.gif'),
-    array('N'=>'Heavy Freezing Spray Watch',      'C'=>'#F93', 'S'=>'109', 'I'=>'SWA.gif'),
-    array('N'=>'Lake Effect Snow Watch',          'C'=>'#F93', 'S'=>'110', 'I'=>'WSA.gif'),
-    array('N'=>'Lakeshore Flood Watch',           'C'=>'#F93', 'S'=>'111', 'I'=>'FFA.gif'),
-    array('N'=>'Tropical Storm Watch',            'C'=>'#F93', 'S'=>'112', 'I'=>'TRA.gif'),
-    array('N'=>'Tropical Storm Wind Watch',       'C'=>'#F93', 'S'=>'113', 'I'=>'WIY.gif'),
-    array('N'=>'Tsunami Watch',                   'C'=>'#F93', 'S'=>'114', 'I'=>'WSA.gif'),
-    array('N'=>'Wind Chill Watch',                'C'=>'#F93', 'S'=>'115', 'I'=>'WCA.gif'),
-    array('N'=>'Winter Storm Watch',              'C'=>'#F93', 'S'=>'116', 'I'=>'SRA.gif'),
-    array('N'=>'Winter Weather Watch',            'C'=>'#F93', 'S'=>'117', 'I'=>'WSA.gif'),
-    array('N'=>'Storm Watch',                     'C'=>'#F93', 'S'=>'118', 'I'=>'SRA.gif'),
-
-    array('N'=>'Coastal Flood Statement',         'C'=>'#C70', 'S'=>'120', 'I'=>'FFS.gif'),
-    array('N'=>'Flash Flood Statement',           'C'=>'#C70', 'S'=>'121', 'I'=>'FFS.gif'),
-    array('N'=>'Rip Current Statement',           'C'=>'#C70', 'S'=>'122', 'I'=>'RVS.gif'),
-    array('N'=>'Flood Statement',                 'C'=>'#C70', 'S'=>'123', 'I'=>'FFS.gif'),
-    array('N'=>'Hurricane Statement',             'C'=>'#C70', 'S'=>'124', 'I'=>'HUA.gif'),
-    array('N'=>'Hurricane Local Statement',       'C'=>'#C70', 'S'=>'124', 'I'=>'HUA.gif'),  #### ADDED
-    array('N'=>'Lakeshore Flood Statement',       'C'=>'#C70', 'S'=>'125', 'I'=>'FFS.gif'),
-    array('N'=>'Marine Weather Statement',        'C'=>'#C70', 'S'=>'126', 'I'=>'MWS.gif'),
-    array('N'=>'Public Information Statement',    'C'=>'#C70', 'S'=>'127', 'I'=>'PNS.gif'),
-    array('N'=>'River Flood Statement',           'C'=>'#C70', 'S'=>'128', 'I'=>'FLS.gif'),
-    array('N'=>'River Statement',                 'C'=>'#C70', 'S'=>'129', 'I'=>'RVS.gif'),
-    array('N'=>'Severe Weather Statement',        'C'=>'#F33', 'S'=>'130', 'I'=>'SVS.gif'),
-    array('N'=>'Special Weather Statement',       'C'=>'#C70', 'S'=>'131', 'I'=>'SPS.gif'),
-    array('N'=>'Beach Hazards Statement',         'C'=>'#C70', 'S'=>'132', 'I'=>'SPS.gif'),
-    array('N'=>'Tropical Statement',              'C'=>'#C70', 'S'=>'133', 'I'=>'HLS.gif'),
-    array('N'=>'Typhoon Statement',               'C'=>'#C70', 'S'=>'134', 'I'=>'TRA.gif'),
-
-    array('N'=>'Air Quality Alert',               'C'=>'#06C', 'S'=>'140',  'I'=>'SPS.gif'),
-    array('N'=>'Significant Weather Alert',       'C'=>'#F33', 'S'=>'141',  'I'=>'SWA.gif'),
-    array('N'=>'Child Abduction Emergency',       'C'=>'#093', 'S'=>'142', 'I'=>'SPS.gif'),
-    array('N'=>'Civil Emergency Message',         'C'=>'#093', 'S'=>'143',  'I'=>'SPS.gif'),
-    array('N'=>'Local Area Emergency',            'C'=>'#093', 'S'=>'144',  'I'=>'SPS.gif'),
-    array('N'=>'Hazardous Weather Outlook',       'C'=>'#093', 'S'=>'149',  'I'=>'SPS.gif'),
-    array('N'=>'Hydrologic Outlook',              'C'=>'#093', 'S'=>'149',  'I'=>'SPS.gif'),
-    array('N'=>'Extreme Fire Danger',             'C'=>'#D00', 'S'=>'82',   'I'=>'WSW.gif'),
-    array('N'=>'Coastal Hazard',                  'C'=>'#C70', 'S'=>'135',  'I'=>'CFS.gif'),
-    array('N'=>'Short Term',                      'C'=>'#093', 'S'=>'136',  'I'=>'NOW.gif'),
-    array('N'=>'911 Telephone Outage',            'C'=>'#36C', 'S'=>'137',  'I'=>'SPS.gif'),
-    array('N'=>'911 Telephone Outage Emergency',  'C'=>'#36C', 'S'=>'137',  'I'=>'SPS.gif'),
-    array('N'=>'Evacuation Immediate',            'C'=>'EA00', 'S'=>'45',   'I'=>'SVW.gif'),
+# generated from WWA-hazards-2024-10-01.txt merged with orig_alerts_array.txt and resorted by new prio 
+# by gen-alert-types.php V1.00 30-Sep-2024
+#
+    array('N'=>'Tsunami Warning',                      'C'=>'#D00', 'S'=>'1',   'I'=>'CFW.gif'),
+    array('N'=>'Tornado Warning',                      'C'=>'#A00', 'S'=>'2',   'I'=>'TOR.gif'),
+    array('N'=>'Extreme Wind Warning',                 'C'=>'#D00', 'S'=>'3',   'I'=>'EWW.gif'),
+    array('N'=>'Severe Thunderstorm Warning',          'C'=>'#B11', 'S'=>'4',   'I'=>'SVR.gif'),
+    array('N'=>'Flash Flood Warning',                  'C'=>'#D00', 'S'=>'5',   'I'=>'FFW.gif'),
+    array('N'=>'Flash Flood Statement',                'C'=>'#C70', 'S'=>'6',   'I'=>'FFS.gif'),
+    array('N'=>'Severe Weather Statement',             'C'=>'#F33', 'S'=>'7',   'I'=>'SVS.gif'),
+    array('N'=>'Shelter In Place Warning',             'C'=>'#D00', 'S'=>'8',   'I'=>'CEM.gif'),
+    array('N'=>'Evacuation Immediate',                 'C'=>'#A00', 'S'=>'9',   'I'=>'SVW.gif'),
+    array('N'=>'Civil Danger Warning',                 'C'=>'#D00', 'S'=>'10',  'I'=>'WSW.gif'),
+    array('N'=>'Nuclear Power Plant Warning',          'C'=>'#D00', 'S'=>'11',  'I'=>'WSW.gif'),
+    array('N'=>'Radiological Hazard Warning',          'C'=>'#D00', 'S'=>'12',  'I'=>'WSW.gif'),
+    array('N'=>'Hazardous Materials Warning',          'C'=>'#D00', 'S'=>'13',  'I'=>'WSW.gif'),
+    array('N'=>'Fire Warning',                         'C'=>'#D00', 'S'=>'14',  'I'=>'WSW.gif'),
+    array('N'=>'Civil Emergency Message',              'C'=>'#093', 'S'=>'15',  'I'=>'SPS.gif'),
+    array('N'=>'Law Enforcement Warning',              'C'=>'#D00', 'S'=>'16',  'I'=>'WSA.gif'),
+    array('N'=>'Storm Surge Warning',                  'C'=>'#D00', 'S'=>'17',  'I'=>'CFW.gif'),
+    array('N'=>'Hurricane Force Wind Warning',         'C'=>'#D00', 'S'=>'18',  'I'=>'HUW.gif'),
+    array('N'=>'Hurricane Warning',                    'C'=>'#D00', 'S'=>'19',  'I'=>'HUW.gif'),
+    array('N'=>'Typhoon Warning',                      'C'=>'#D00', 'S'=>'20',  'I'=>'TRW.gif'),
+    array('N'=>'Special Marine Warning',               'C'=>'#D00', 'S'=>'21',  'I'=>'SMW.gif'),
+    array('N'=>'Blizzard Warning',                     'C'=>'#D00', 'S'=>'22',  'I'=>'WCW.gif'),
+    array('N'=>'Snow Squall Warning',                  'C'=>'#D00', 'S'=>'23',  'I'=>'WCW.gif'),
+    array('N'=>'Ice Storm Warning',                    'C'=>'#D00', 'S'=>'24',  'I'=>'ISW.gif'),
+    array('N'=>'Heavy Freezing Spray Warning',         'C'=>'#F60', 'S'=>'25',  'I'=>'SWA.gif'),
+    array('N'=>'Winter Storm Warning',                 'C'=>'#D00', 'S'=>'26',  'I'=>'WCW.gif'),
+    array('N'=>'Lake Effect Snow Warning',             'C'=>'#D00', 'S'=>'27',  'I'=>'SMW.gif'),
+    array('N'=>'Dust Storm Warning',                   'C'=>'#D00', 'S'=>'28',  'I'=>'EWW.gif'),
+    array('N'=>'Blowing Dust Warning',                 'C'=>'#D00', 'S'=>'29',  'I'=>'EWW.gif'),
+    array('N'=>'High Wind Warning',                    'C'=>'#D00', 'S'=>'30',  'I'=>'HWW.gif'),
+    array('N'=>'Tropical Storm Warning',               'C'=>'#D00', 'S'=>'31',  'I'=>'TRW.gif'),
+    array('N'=>'Storm Warning',                        'C'=>'#D00', 'S'=>'32',  'I'=>'SRW.gif'),
+    array('N'=>'Tsunami Advisory',                     'C'=>'#F60', 'S'=>'33',  'I'=>'CFS.gif'),
+    array('N'=>'Tsunami Watch',                        'C'=>'#F93', 'S'=>'34',  'I'=>'CFA.gif'),
+    array('N'=>'Avalanche Warning',                    'C'=>'#D00', 'S'=>'35',  'I'=>'WSW.gif'),
+    array('N'=>'Earthquake Warning',                   'C'=>'#D00', 'S'=>'36',  'I'=>'WSW.gif'),
+    array('N'=>'Volcano Warning',                      'C'=>'#D00', 'S'=>'37',  'I'=>'WSW.gif'),
+    array('N'=>'Ashfall Warning',                      'C'=>'#D00', 'S'=>'38',  'I'=>'EWW.gif'),
+    array('N'=>'Flood Warning',                        'C'=>'#D00', 'S'=>'39',  'I'=>'FFW.gif'),
+    array('N'=>'Coastal Flood Warning',                'C'=>'#D00', 'S'=>'40',  'I'=>'CFW.gif'),
+    array('N'=>'Lakeshore Flood Warning',              'C'=>'#D00', 'S'=>'41',  'I'=>'CFW.gif'),
+    array('N'=>'Ashfall Advisory',                     'C'=>'#F60', 'S'=>'42',  'I'=>'WSW.gif'),
+    array('N'=>'High Surf Warning',                    'C'=>'#D00', 'S'=>'43',  'I'=>'SMW.gif'),
+    array('N'=>'Excessive Heat Warning',               'C'=>'#D00', 'S'=>'44',  'I'=>'EHW.gif'),
+    array('N'=>'Tornado Watch',                        'C'=>'#F93', 'S'=>'45',  'I'=>'TOA.gif'),
+    array('N'=>'Severe Thunderstorm Watch',            'C'=>'#F93', 'S'=>'46',  'I'=>'SVA.gif'),
+    array('N'=>'Flash Flood Watch',                    'C'=>'#F93', 'S'=>'47',  'I'=>'FFA.gif'),
+    array('N'=>'Gale Warning',                         'C'=>'#D00', 'S'=>'48',  'I'=>'GLW.gif'),
+    array('N'=>'Flood Statement',                      'C'=>'#C70', 'S'=>'49',  'I'=>'FFS.gif'),
+    array('N'=>'Extreme Cold Warning',                 'C'=>'#D00', 'S'=>'50',  'I'=>'HZW.gif'),
+    array('N'=>'Freeze Warning',                       'C'=>'#D00', 'S'=>'51',  'I'=>'FZW.gif'),
+    array('N'=>'Red Flag Warning',                     'C'=>'#D00', 'S'=>'52',  'I'=>'FWW.gif'),
+    array('N'=>'Storm Surge Watch',                    'C'=>'#F93', 'S'=>'53',  'I'=>'CFA.gif'),
+    array('N'=>'Hurricane Watch',                      'C'=>'#F93', 'S'=>'54',  'I'=>'HUA.gif'),
+    array('N'=>'Hurricane Force Wind Watch',           'C'=>'#F93', 'S'=>'55',  'I'=>'HWW.gif'),
+    array('N'=>'Typhoon Watch',                        'C'=>'#F93', 'S'=>'56',  'I'=>'HUA.gif'),
+    array('N'=>'Tropical Storm Watch',                 'C'=>'#F93', 'S'=>'57',  'I'=>'TRA.gif'),
+    array('N'=>'Storm Watch',                          'C'=>'#F93', 'S'=>'58',  'I'=>'SRA.gif'),
+    array('N'=>'Tropical Cyclone Local Statement',     'C'=>'#C70', 'S'=>'59',  'I'=>'HLS.gif'),
+    array('N'=>'Winter Weather Advisory',              'C'=>'#F60', 'S'=>'60',  'I'=>'WCY.gif'),
+    array('N'=>'Avalanche Advisory',                   'C'=>'#F60', 'S'=>'61',  'I'=>'SWA.gif'),
+    array('N'=>'Cold Weather Advisory',                'C'=>'#F60', 'S'=>'62',  'I'=>'WCY.gif'),
+    array('N'=>'Heat Advisory',                        'C'=>'#F60', 'S'=>'63',  'I'=>'HTY.gif'),
+    array('N'=>'Flood Advisory',                       'C'=>'#F60', 'S'=>'64',  'I'=>'FFS.gif'),
+    array('N'=>'Coastal Flood Advisory',               'C'=>'#F60', 'S'=>'65',  'I'=>'CFS.gif'),
+    array('N'=>'Lakeshore Flood Advisory',             'C'=>'#F60', 'S'=>'66',  'I'=>'CFS.gif'),
+    array('N'=>'High Surf Advisory',                   'C'=>'#F60', 'S'=>'67',  'I'=>'SUY.gif'),
+    array('N'=>'Dense Fog Advisory',                   'C'=>'#F60', 'S'=>'68',  'I'=>'FGY.gif'),
+    array('N'=>'Dense Smoke Advisory',                 'C'=>'#F60', 'S'=>'69',  'I'=>'SMY.gif'),
+    array('N'=>'Small Craft Advisory',                 'C'=>'#F60', 'S'=>'70',  'I'=>'SCY.gif'),
+    array('N'=>'Brisk Wind Advisory',                  'C'=>'#F60', 'S'=>'71',  'I'=>'WIY.gif'),
+    array('N'=>'Hazardous Seas Warning',               'C'=>'#D00', 'S'=>'72',  'I'=>'SMW.gif'),
+    array('N'=>'Dust Advisory',                        'C'=>'#F60', 'S'=>'73',  'I'=>'SWA.gif'),
+    array('N'=>'Blowing Dust Advisory',                'C'=>'#F60', 'S'=>'74',  'I'=>'HWW.gif'),
+    array('N'=>'Lake Wind Advisory',                   'C'=>'#F60', 'S'=>'75',  'I'=>'LWY.gif'),
+    array('N'=>'Wind Advisory',                        'C'=>'#F60', 'S'=>'76',  'I'=>'WIY.gif'),
+    array('N'=>'Frost Advisory',                       'C'=>'#F60', 'S'=>'77',  'I'=>'FRY.gif'),
+    array('N'=>'Freezing Fog Advisory',                'C'=>'#F60', 'S'=>'78',  'I'=>'FZW.gif'),
+    array('N'=>'Freezing Spray Advisory',              'C'=>'#F60', 'S'=>'79',  'I'=>'SWA.gif'),
+    array('N'=>'Low Water Advisory',                   'C'=>'#F60', 'S'=>'80',  'I'=>'FFS.gif'),
+    array('N'=>'Local Area Emergency',                 'C'=>'#093', 'S'=>'81',  'I'=>'SPS.gif'),
+    array('N'=>'Winter Storm Watch',                   'C'=>'#F93', 'S'=>'82',  'I'=>'SRA.gif'),
+    array('N'=>'Rip Current Statement',                'C'=>'#C70', 'S'=>'83',  'I'=>'RVS.gif'),
+    array('N'=>'Beach Hazards Statement',              'C'=>'#C70', 'S'=>'84',  'I'=>'SPS.gif'),
+    array('N'=>'Gale Watch',                           'C'=>'#F93', 'S'=>'85',  'I'=>'GLA.gif'),
+    array('N'=>'Avalanche Watch',                      'C'=>'#F93', 'S'=>'86',  'I'=>'WSA.gif'),
+    array('N'=>'Hazardous Seas Watch',                 'C'=>'#F93', 'S'=>'87',  'I'=>'SUY.gif'),
+    array('N'=>'Heavy Freezing Spray Watch',           'C'=>'#F93', 'S'=>'88',  'I'=>'SWA.gif'),
+    array('N'=>'Flood Watch',                          'C'=>'#F93', 'S'=>'89',  'I'=>'FFA.gif'),
+    array('N'=>'Coastal Flood Watch',                  'C'=>'#F93', 'S'=>'90',  'I'=>'CFA.gif'),
+    array('N'=>'Lakeshore Flood Watch',                'C'=>'#F93', 'S'=>'91',  'I'=>'CFA.gif'),
+    array('N'=>'High Wind Watch',                      'C'=>'#F93', 'S'=>'92',  'I'=>'WIY.gif'),
+    array('N'=>'Excessive Heat Watch',                 'C'=>'#F93', 'S'=>'93',  'I'=>'EHA.gif'),
+    array('N'=>'Extreme Cold Watch',                   'C'=>'#F93', 'S'=>'94',  'I'=>'HZA.gif'),
+    array('N'=>'Freeze Watch',                         'C'=>'#F93', 'S'=>'95',  'I'=>'FZA.gif'),
+    array('N'=>'Fire Weather Watch',                   'C'=>'#F93', 'S'=>'96',  'I'=>'FWA.gif'),
+    array('N'=>'Extreme Fire Danger',                  'C'=>'#D00', 'S'=>'97',  'I'=>'FWW.gif'),
+    array('N'=>'911 Telephone Outage',                 'C'=>'#36C', 'S'=>'98',  'I'=>'SPS.gif'),
+    array('N'=>'Coastal Flood Statement',              'C'=>'#C70', 'S'=>'99',  'I'=>'CFS.gif'),
+    array('N'=>'Lakeshore Flood Statement',            'C'=>'#C70', 'S'=>'100', 'I'=>'CFS.gif'),
+    array('N'=>'Special Weather Statement',            'C'=>'#C70', 'S'=>'101', 'I'=>'SPS.gif'),
+    array('N'=>'Marine Weather Statement',             'C'=>'#C70', 'S'=>'102', 'I'=>'MWS.gif'),
+    array('N'=>'Air Quality Alert',                    'C'=>'#06C', 'S'=>'103', 'I'=>'SPS.gif'),
+    array('N'=>'Air Stagnation Advisory',              'C'=>'#F60', 'S'=>'104', 'I'=>'SPS.gif'),
+    array('N'=>'Hazardous Weather Outlook',            'C'=>'#093', 'S'=>'105', 'I'=>'SPS.gif'),
+    array('N'=>'Hydrologic Outlook',                   'C'=>'#093', 'S'=>'106', 'I'=>'SPS.gif'),
+    array('N'=>'Short Term Forecast',                  'C'=>'#C70', 'S'=>'107', 'I'=>'NOW.gif'),
+    array('N'=>'Administrative Message',               'C'=>'#36C', 'S'=>'108', 'I'=>'BNK.gif'),
+    array('N'=>'Test',                                 'C'=>'#36C', 'S'=>'109', 'I'=>'BNK.gif'),
+    array('N'=>'Child Abduction Emergency',            'C'=>'#093', 'S'=>'110', 'I'=>'SPS.gif'),
+    array('N'=>'Blue Alert',                           'C'=>'#36C', 'S'=>'111', 'I'=>'BNK.gif'),
   );
 
   foreach ($alert_types as $a_type)  {
@@ -1053,9 +1035,10 @@ function get_nwsalerts($url)    {
   curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (nws-alerts.php - saratoga-weather.org)');
 //    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0');
   if(strpos($url,'api.weather.gov') !== false) {
+		$accept = (strpos($url,'point=') !== false)?'application/atom+xml':'application/cap+xml';
 		curl_setopt($ch, CURLOPT_HTTPHEADER, // request LD-JSON format
 			array(
-				"Accept: application/cap+xml",
+				"Accept: $accept",
 				"Cache-control: no-cache",
 				"Pragma: akamai-x-cache-on, akamai-x-get-request-id"
 			));
