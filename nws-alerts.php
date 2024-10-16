@@ -49,8 +49,9 @@ Version 1.44 - 13-May-2023    fixed errata using alertlog capability and PHP 8.2
 Version 2.00 - 30-Jan-2024    rewrite and adapted for CAP 1.2/new alerts URL from NWS at api.weather.gov
 Version 2.01 - 31-Jan-2024    add ability to use lat,long instead of Forecast/County zones for alerts at point
 Version 2.02 - 01-Oct-2024    update for alert names available from NWS on 01-Oct-2024 (https://www.weather.gov/help-map/)
+Version 2.03 - 15-Oct-2024    update alert background/color for 1-Oct-2024 NWS alert priorities
 */
-$Version = "nws-alerts.php - V2.02 - 01-Oct-2024"; 
+$Version = "nws-alerts.php - V2.03 - 15-Oct-2024"; 
 
 // self downloader code
 if (isset($_REQUEST['sce']) && ( strtolower($_REQUEST['sce']) == 'view' or
@@ -830,6 +831,7 @@ fclose($notesfo);                                                               
 // FUNCTION - get color, severity, icon
 function get_icon($evnt) {
   $a = array();
+  global $alert_types;
   $alert_types = array (
 # generated from WWA-hazards-2024-10-01.txt merged with orig_alerts_array.txt and resorted by new prio 
 # by gen-alert-types.php V1.00 30-Sep-2024
@@ -1125,8 +1127,9 @@ function ico_sort($a, $b){
   elseif($a[2] < $b[2]){ return -1; }
 } // end u-sort function
 
+/*
 // FUNCTION - set background color (severity color code)
-function get_scc($scc) {
+function old_get_scc($scc) {
   global $tc, $bc;                        // make colors global
   $tc = 'color: #000;';
   if($scc >= 0 and $scc <= 49) {          // warning background
@@ -1146,6 +1149,30 @@ function get_scc($scc) {
      $bc = 'background-color:#E6E6E3;';
   }
 }// end background color function
+//*/
+
+// FUNCTION - set background color (severity color code)
+function get_scc($scc) {
+  global $tc, $bc, $alert_types;                        // make colors global
+  $ix = $scc-1;
+  $aname = isset($alert_types[$ix]['N'])?$alert_types[$ix]['N']:'unknown';
+  $tc = 'color: #000;';
+  $bc = 'background-color:#E6E6E3;';
+  if(strpos($aname,'Warning') !== false) {          // warning background
+    $bc = 'background-color:#CC0000;';
+    $tc = 'color: white;';
+  }
+  if(strpos($aname,'Advisory') !== false) {         // advisory background
+    $bc = 'background-color:#FFCC00;';
+  }
+  if(strpos($aname,'Watch') !== false) {        // watch background
+    $bc = 'background-color:#FF9900;';
+  }
+  if(strpos($aname,'Air ') !== false) {                       // none background
+    $bc = 'background-color:#E6E6E3;';
+  }
+}// end background color function
+
 
 // FUNCTION - convert icon name into icon
 function conv_icon($if,$ic,$ti) {
@@ -1154,6 +1181,7 @@ function conv_icon($if,$ic,$ti) {
   return $ico;
 }// end convert icon function
 
+/*
 // FUNCTION - convert big icons
 function create_bi($a,$b,$c,$d,$e,$g,$h,$i) {
   if($h >= 0 and $h <= 49) { $bi = "A-warn.png"; }
@@ -1174,6 +1202,33 @@ function create_bi($a,$b,$c,$d,$e,$g,$h,$i) {
 ';
   return $bico;
 }// end convert big icons function
+//*/
+
+// FUNCTION - convert big icons
+function create_bi($a,$b,$c,$d,$e,$g,$h,$i) {
+  global $alert_types;                        // make colors global
+  $ix = $h-1;
+  $aname = isset($alert_types[$ix]['N'])?$alert_types[$ix]['N']:'unknown';
+  $bi = "A-none.png";
+  if(strpos($aname,'Warning') !== false) { $bi = "A-warn.png"; }
+  if(strpos($aname,'Advisory') !== false) { $bi = "A-advisory.png";	}
+  if(strpos($aname,'Watch') !== false) { $bi = "A-watch.png"; }	
+  if(strpos($aname,'Statement') !== false) { $bi = "A-statement.png"; }	
+  if(strpos($aname,'Air ') !== false) { $bi = "A-air.png"; }	
+  if(strpos($aname,'Alert') !== false) { $bi = "A-alert.png"; }
+  if($h == 150) { $bi = "A-none.png"; }
+  if($i < 2) {$i = '';}
+  if($i >= 2) {$i = $i - 1;}
+  ($i == 1) ? $alrts = 'alert' : $alrts = 'alerts';
+  if($i >= 1) {$i = '&nbsp; +'.$i.' additional '.$alrts;}
+  $bico =  ' <a href="'.$b.'?a='.$c.'#WA'.$d.'" title=" &nbsp;Details for '.$a
+           .'&nbsp;'.$e.$i.'" style="width:99%; text-decoration:none; padding-top:3px">'.$a.'<br /><img src="'.$g
+           .'/'.$bi.'" alt=" &nbsp;Details for '.$a.'&nbsp;'.$e.$i
+           .'" width="74" height="18" style="border:none; padding-bottom:3px" /><br /></a>
+';
+  return $bico;
+}// end convert big icons function
+
 
 // FUNCTION - return time
 function load_timer() { // mchallis added function
