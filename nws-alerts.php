@@ -50,8 +50,9 @@ Version 2.00 - 30-Jan-2024    rewrite and adapted for CAP 1.2/new alerts URL fro
 Version 2.01 - 31-Jan-2024    add ability to use lat,long instead of Forecast/County zones for alerts at point
 Version 2.02 - 01-Oct-2024    update for alert names available from NWS on 01-Oct-2024 (https://www.weather.gov/help-map/)
 Version 2.03 - 15-Oct-2024    update alert background/color for 1-Oct-2024 NWS alert priorities
+Version 2.04 - 23-Jun-2025    Update for Extreme Heat watch/warning
 */
-$Version = "nws-alerts.php - V2.03 - 15-Oct-2024"; 
+$Version = "nws-alerts.php - V2.04 - 23-Jun-2025"; 
 
 // self downloader code
 if (isset($_REQUEST['sce']) && ( strtolower($_REQUEST['sce']) == 'view' or
@@ -879,7 +880,7 @@ function get_icon($evnt) {
     array('N'=>'Lakeshore Flood Warning',              'C'=>'#D00', 'S'=>'41',  'I'=>'CFW.gif'),
     array('N'=>'Ashfall Advisory',                     'C'=>'#F60', 'S'=>'42',  'I'=>'WSW.gif'),
     array('N'=>'High Surf Warning',                    'C'=>'#D00', 'S'=>'43',  'I'=>'SMW.gif'),
-    array('N'=>'Excessive Heat Warning',               'C'=>'#D00', 'S'=>'44',  'I'=>'EHW.gif'),
+    array('N'=>'Extreme Heat Warning',                 'C'=>'#D00', 'S'=>'44',  'I'=>'EHW.gif'),
     array('N'=>'Tornado Watch',                        'C'=>'#F93', 'S'=>'45',  'I'=>'TOA.gif'),
     array('N'=>'Severe Thunderstorm Watch',            'C'=>'#F93', 'S'=>'46',  'I'=>'SVA.gif'),
     array('N'=>'Flash Flood Watch',                    'C'=>'#F93', 'S'=>'47',  'I'=>'FFA.gif'),
@@ -928,7 +929,7 @@ function get_icon($evnt) {
     array('N'=>'Coastal Flood Watch',                  'C'=>'#F93', 'S'=>'90',  'I'=>'CFA.gif'),
     array('N'=>'Lakeshore Flood Watch',                'C'=>'#F93', 'S'=>'91',  'I'=>'CFA.gif'),
     array('N'=>'High Wind Watch',                      'C'=>'#F93', 'S'=>'92',  'I'=>'WIY.gif'),
-    array('N'=>'Excessive Heat Watch',                 'C'=>'#F93', 'S'=>'93',  'I'=>'EHA.gif'),
+    array('N'=>'Extreme Heat Watch',                   'C'=>'#F93', 'S'=>'93',  'I'=>'EHA.gif'),
     array('N'=>'Extreme Cold Watch',                   'C'=>'#F93', 'S'=>'94',  'I'=>'HZA.gif'),
     array('N'=>'Freeze Watch',                         'C'=>'#F93', 'S'=>'95',  'I'=>'FZA.gif'),
     array('N'=>'Fire Weather Watch',                   'C'=>'#F93', 'S'=>'96',  'I'=>'FWA.gif'),
