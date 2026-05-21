@@ -51,8 +51,9 @@ Version 2.01 - 31-Jan-2024    add ability to use lat,long instead of Forecast/Co
 Version 2.02 - 01-Oct-2024    update for alert names available from NWS on 01-Oct-2024 (https://www.weather.gov/help-map/)
 Version 2.03 - 15-Oct-2024    update alert background/color for 1-Oct-2024 NWS alert priorities
 Version 2.04 - 23-Jun-2025    Update for Extreme Heat watch/warning
+Version 2.05 - 21-May-2026    fixes for PHP 8.5
 */
-$Version = "nws-alerts.php - V2.04 - 23-Jun-2025"; 
+$Version = "nws-alerts.php - V2.05 - 21-May-2026 "; 
 
 // self downloader code
 if (isset($_REQUEST['sce']) && ( strtolower($_REQUEST['sce']) == 'view' or
@@ -1080,7 +1081,7 @@ function get_nwsalerts($url)    {
     " secs -->\n";
 
 
-  curl_close($ch);                                                        // close the cURL session
+  if(PHP_MAJOR_VERSION < 8) {curl_close($ch); }// close the cURL session
   
   if(preg_match("|xml|",$header_type)) {                            // IF text/xml is found in the header
    $data = @simplexml_load_string($data);
